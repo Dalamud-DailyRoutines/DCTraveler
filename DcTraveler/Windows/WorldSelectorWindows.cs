@@ -1,141 +1,143 @@
-using Dalamud.Interface.Windowing;
-using ImGuiNET;
-using Serilog;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
-using System.Text;
 using System.Threading.Tasks;
-using static FFXIVClientStructs.FFXIV.Client.Graphics.Render.ModelRenderer;
+using Dalamud.Interface.Utility.Raii;
+using Dalamud.Interface.Windowing;
+using DCTraveler.Infos;
+using ImGuiNET;
 
-namespace DcTraveler.Windows
+namespace DCTraveler.Windows;
+
+internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.NoCollapse), IDisposable
 {
-    public class WorldSelectResult
+    private          bool           showSourceWorld = true;
+    private          bool           showTargetWorld = true;
+    private          bool           isBack;
+    private          int            currentDcIndex;
+    private          int            currentWorldIndex;
+    private          string[]       dc    = [];
+    private readonly List<string[]> world = [];
+    private          int            targetDcIndex;
+    private          int            targetWorldIndex;
+    private          List<Area>     areas = [];
+
+    public override void PreDraw()
     {
-        public bool IsOk { get; set; }
-        public Area Source { get; set; }
-        public Area Target { get; set; }
+        var viewport = ImGui.GetMainViewport();
+        var center   = viewport.GetCenter();
+        ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
+        base.PreDraw();
     }
 
-    public class SelectWorldResult
+    public override void Draw()
     {
-        public Group Source { get; set; }
-        public Group Target { get; set; }
-    }
-    internal class WorldSelectorWindows : Window, IDisposable
-    {
-        public WorldSelectorWindows() : base("超域传送", ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.AlwaysAutoResize)
+        if (showSourceWorld)
         {
-        }
-
-        private bool showSourceWorld = true;
-        private bool showTargetWorld = true;
-        private bool isBack = false;
-        private int currentDcIndex = 0;
-        private int currentWorldIndex = 0;
-        private string[] dc = new string[0];
-        private List<string[]> world = new();
-        private int targetDcIndex = 0;
-        private int targetWorldIndex = 0;
-        private  List<Area> areas = new();
-
-        public override void PreDraw()
-        {
-            var viewport = ImGui.GetMainViewport();
-            var center = viewport.GetCenter();
-            ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
-            //Log.Information("Middle");
-            base.PreDraw();
-        }
-        public override void Draw()
-        {
-            if (showSourceWorld)
+            using (var table = ImRaii.Table("##TableCurrent", 2))
             {
-                ImGui.BeginTable("##TableCurrent", 2, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.NoBordersInBodyUntilResize);
-                ImGui.TableSetupColumn("当前大区", ImGuiTableColumnFlags.WidthFixed, 100);
-                ImGui.TableSetupColumn("当前服务器", ImGuiTableColumnFlags.WidthFixed, 300);
-                ImGui.TableHeadersRow();
-
-                ImGui.TableNextRow();
-                ImGui.TableNextColumn();
-                ImGui.ListBox("##CurrentDc", ref currentDcIndex, dc, dc.Length, 4);
-                ImGui.TableNextColumn();
-                ImGui.ListBox("##CurrentServer", ref currentWorldIndex, world[currentDcIndex], world[targetDcIndex].Length, 7);
-                ImGui.EndTable();
-            }
-
-            if (showTargetWorld)
-            {
-                ImGui.BeginTable("##TableCurrent", 2, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.NoBordersInBodyUntilResize);
-                ImGui.TableSetupColumn("目标大区", ImGuiTableColumnFlags.WidthFixed, 100);
-                ImGui.TableSetupColumn("目标服务器", ImGuiTableColumnFlags.WidthFixed, 300);
-                ImGui.TableHeadersRow();
-
-                ImGui.TableNextRow();
-                ImGui.TableNextColumn();
-                ImGui.ListBox("##TargettDc", ref targetDcIndex, dc, dc.Length, 4);
-                ImGui.TableNextColumn();
-                ImGui.ListBox("##TargetServer", ref targetWorldIndex, world[targetDcIndex], world[targetDcIndex].Length, 7);
-                ImGui.EndTable();
-            }
-            var sameDc = (currentDcIndex == targetDcIndex);
-            if (sameDc)
-            {
-                ImGui.BeginDisabled();
-            }
-            if (ImGui.Button(isBack ? "返回" : "传送"))
-            {
-                this.selectWorldTaskCompletionSource?.SetResult(
-                    new SelectWorldResult() {
-                        Source = areas[currentDcIndex].GroupList[currentWorldIndex], 
-                        Target = areas[targetDcIndex].GroupList[targetWorldIndex] 
-                    });
-                this.IsOpen = false;
-            }
-            if (sameDc)
-            {
-                ImGui.EndDisabled();
-            }
-            ImGui.SameLine();
-            if (ImGui.Button("取消"))
-            {
-                this.selectWorldTaskCompletionSource?.SetResult(null);
-                this.IsOpen = false;
-            }
-        }
-        private TaskCompletionSource<SelectWorldResult>? selectWorldTaskCompletionSource;
-        public Task<SelectWorldResult> OpenTravelWindow(bool showSourceWorld, bool showTargetWorld, bool isBack, List<Area> areas, string? currentDcName = null, string? currentWorldCode = null, string? targetDcName = null, string? targetWorldCode = null)
-        {
-            this.selectWorldTaskCompletionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
-            this.areas = areas;
-            this.showSourceWorld = showSourceWorld;
-            this.showTargetWorld = showTargetWorld;
-            this.isBack = isBack;
-            this.dc = new string[areas.Count];
-            for (int i = 0; i < areas.Count; i++)
-            {
-                this.dc[i] = areas[i].AreaName;
-                this.world.Add(new string[areas[i].GroupList.Count]);
-                if (currentDcName == areas[i].AreaName)
-                    this.currentDcIndex = i;
-                else if (targetDcName == areas[i].AreaName)
-                    this.targetDcIndex = i;
-                for (int j = 0; j < areas[i].GroupList.Count; j++)
+                if (table)
                 {
-                    if (currentDcName == areas[i].AreaName && areas[i].GroupList[j].GroupCode == currentWorldCode)
-                        this.currentWorldIndex = j;
-                    else if (targetDcName == areas[i].AreaName && areas[i].GroupList[j].GroupCode == targetWorldCode)
-                        this.targetWorldIndex = j;
-                    this.world[i][j] = areas[i].GroupList[j].GroupName;
+                    ImGui.TableSetupColumn("当前大区",  ImGuiTableColumnFlags.WidthStretch);
+                    ImGui.TableSetupColumn("当前服务器", ImGuiTableColumnFlags.WidthStretch);
+                    
+                    ImGui.TableHeadersRow();
+
+                    ImGui.TableNextRow();
+                    
+                    ImGui.TableNextColumn();
+                    ImGui.SetNextItemWidth(-1f);
+                    ImGui.ListBox("##CurrentDc", ref currentDcIndex, dc, dc.Length, 4);
+                    
+                    ImGui.TableNextColumn();
+                    ImGui.SetNextItemWidth(-1f);
+                    ImGui.ListBox("##CurrentServer", ref currentWorldIndex, world[currentDcIndex], world[targetDcIndex].Length, 7);
                 }
             }
-            this.IsOpen = true;
-            return this.selectWorldTaskCompletionSource.Task;
         }
 
-        public void Dispose()
+        if (showTargetWorld)
         {
+            using (var table = ImRaii.Table("##TableCurrent", 2))
+            {
+                if (table)
+                {
+                    ImGui.TableSetupColumn("目标大区",  ImGuiTableColumnFlags.WidthStretch);
+                    ImGui.TableSetupColumn("目标服务器", ImGuiTableColumnFlags.WidthStretch);
+                    
+                    ImGui.TableHeadersRow();
+
+                    ImGui.TableNextRow();
+                    
+                    ImGui.TableNextColumn();
+                    ImGui.SetNextItemWidth(-1f);
+                    ImGui.ListBox("##TargetDC", ref targetDcIndex, dc, dc.Length, 4);
+                    
+                    ImGui.TableNextColumn();
+                    ImGui.SetNextItemWidth(-1f);
+                    ImGui.ListBox("##TargetServer", ref targetWorldIndex, world[targetDcIndex], world[targetDcIndex].Length, 7);
+                }
+            }
+        }
+
+        var sameDc = currentDcIndex == targetDcIndex;
+        using (ImRaii.Disabled(sameDc))
+        {
+            if (ImGui.Button(isBack ? "返回" : "传送"))
+            {
+                selectWorldTaskCompletionSource?.SetResult(
+                    new SelectWorldResult
+                    {
+                        Source = areas[currentDcIndex].GroupList[currentWorldIndex],
+                        Target = areas[targetDcIndex].GroupList[targetWorldIndex]
+                    });
+                IsOpen = false;
+            }
+        }
+        
+        ImGui.SameLine();
+        if (ImGui.Button("取消"))
+        {
+            selectWorldTaskCompletionSource?.SetResult(null!);
+            IsOpen = false;
         }
     }
+
+    private TaskCompletionSource<SelectWorldResult>? selectWorldTaskCompletionSource;
+
+    public Task<SelectWorldResult> OpenTravelWindow(
+        bool    showSource,     bool    showTarget, bool isBackHome, List<Area> areasData, string? currentDcName = null, string? currentWorldCode = null,
+        string? targetDcName = null, string? targetWorldCode = null)
+    {
+        selectWorldTaskCompletionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        
+        areas           = areasData;
+        showSourceWorld = showSource;
+        showTargetWorld = showTarget;
+        isBack          = isBackHome;
+        dc              = new string[areasData.Count];
+        
+        for (var i = 0; i < areasData.Count; i++)
+        {
+            dc[i] = areasData[i].AreaName;
+            world.Add(new string[areasData[i].GroupList.Count]);
+            if (currentDcName == areasData[i].AreaName)
+                currentDcIndex = i;
+            else if (targetDcName == areasData[i].AreaName)
+                targetDcIndex = i;
+            for (var j = 0; j < areasData[i].GroupList.Count; j++)
+            {
+                if (currentDcName == areasData[i].AreaName && areasData[i].GroupList[j].GroupCode == currentWorldCode)
+                    currentWorldIndex = j;
+                else if (targetDcName == areasData[i].AreaName && areasData[i].GroupList[j].GroupCode == targetWorldCode)
+                    targetWorldIndex = j;
+                world[i][j] = areasData[i].GroupList[j].GroupName;
+            }
+        }
+
+        IsOpen = true;
+        return selectWorldTaskCompletionSource.Task;
+    }
+
+    public void Dispose() { }
 }

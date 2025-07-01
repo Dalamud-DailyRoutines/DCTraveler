@@ -1,13 +1,15 @@
 {
   "Author": "Loskh",
-  "Name": "DcTraveler",
-  "Punchline": "像国际服一样跨大区",
-  "Description": "在选择角色界面,右键角色选择超域传送或返回。需要使用XL启动,并在设置中启动超域传送。(WeGame端暂不支持)",
+  "Name": "DCTraveler",
+  "InternalName": "DCTravelerX",
+  "Punchline": "FF14 国服游戏内跨大区插件",
+  "Description": "在选择角色界面, 右键对应角色, 即可进行超域旅行\n需要使用 XIVLauncherCN 启动游戏, 不支持 WeGame 端",
   "ApplicableVersion": "any",
-  "RepoUrl": "https://github.com/Loskh/DcTraveler",
+  "RepoUrl": "https://github.com/Dalamud-DailyRoutines/DCTraveler",
   "LoadPriority": 0,
   "DalamudApiLevel": 12,
   "Tags": [
-    "UI"
+    "跨大区",
+    "数据中心"
   ]
 }
