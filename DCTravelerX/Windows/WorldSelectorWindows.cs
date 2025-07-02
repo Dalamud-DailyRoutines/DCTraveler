@@ -30,7 +30,7 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
         var viewport = ImGui.GetMainViewport();
         var center   = viewport.GetCenter();
         
-        ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new(4f));
+        ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new(0.5f));
         base.PreDraw();
     }
 
