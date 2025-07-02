@@ -9,15 +9,16 @@ namespace DCTravelerX;
 
 public class Service
 {
-    [PluginService] internal static IClientState            ClientState     { get; private set; } = null!;
-    [PluginService] internal static ITextureProvider        TextureProvider { get; private set; } = null!;
-    [PluginService] internal static IDataManager            DataManager     { get; private set; } = null!;
-    [PluginService] internal static IPluginLog              Log             { get; private set; } = null!;
-    [PluginService] internal static IContextMenu            ContextMenu     { get; private set; } = null!;
-    [PluginService] internal static IGameGui                GameGui         { get; private set; } = null!;
-    [PluginService] internal static ISigScanner             SigScanner      { get; private set; } = null!;
-    [PluginService] internal static IFramework              Framework       { get; private set; } = null!;
-    [PluginService] internal static ITitleScreenMenu        TitleScreenMenu { get; private set; } = null!;
+    [PluginService] internal static IAddonLifecycle  AddonLifecycle  { get; private set; } = null!;
+    [PluginService] internal static IClientState     ClientState     { get; private set; } = null!;
+    [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
+    [PluginService] internal static IDataManager     DataManager     { get; private set; } = null!;
+    [PluginService] internal static IPluginLog       Log             { get; private set; } = null!;
+    [PluginService] internal static IContextMenu     ContextMenu     { get; private set; } = null!;
+    [PluginService] internal static IGameGui         GameGui         { get; private set; } = null!;
+    [PluginService] internal static ISigScanner      SigScanner      { get; private set; } = null!;
+    [PluginService] internal static IFramework       Framework       { get; private set; } = null!;
+    [PluginService] internal static ITitleScreenMenu TitleScreenMenu { get; private set; } = null!;
     
     internal static IDalamudPluginInterface PI        { get; private set; } = null!;
     internal static IUiBuilder              UIBuilder { get; private set; } = null!;

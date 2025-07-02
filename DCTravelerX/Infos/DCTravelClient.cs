@@ -10,15 +10,25 @@ namespace DCTravelerX.Infos;
 
 internal class DCTravelClient
 {
-    private readonly string     apiUrl;
-    public           HttpClient httpClient  { get; set; }
-    public           List<Area> CachedAreas { get; set; }
-    public           bool       IsValid;
+    private static DCTravelClient? instance { get; set; }
+    
+    public HttpClient httpClient  { get; init; }
+    public List<Area> CachedAreas { get; set; }
+    public bool       IsValid     { get; private set; }
 
-    public DCTravelClient(int port, bool useEncrypt = true)
+    private readonly string APIURL;
+    
+    public static DCTravelClient Instance(int port = 0)
     {
-        apiUrl = $"http://127.0.0.1:{port}/dctravel/";
-        Service.Log.Information($"DcTravelClient API URL:{apiUrl}");
+        if (instance != null) return instance;
+        
+        return instance ??= new(port);
+    }
+
+    private DCTravelClient(int port, bool useEncrypt = true)
+    {
+        APIURL = $"http://127.0.0.1:{port}/dctravel/";
+        
         httpClient = new HttpClient();
         Task.Run(() =>
         {
@@ -31,14 +41,14 @@ internal class DCTravelClient
     {
         var rpcRequest  = new RpcRequest { Method = method!, Params = objs };
         var jsonPayload = JsonSerializer.Serialize(rpcRequest);
-        Service.Log.Debug($"Request: {jsonPayload}");
+        Service.Log.Debug($"请求 API: {jsonPayload}");
         
-        var request  = new HttpRequestMessage(HttpMethod.Post, apiUrl) { Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json") };
+        var request  = new HttpRequestMessage(HttpMethod.Post, APIURL) { Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json") };
         var response = await httpClient.SendAsync(request);
         response.EnsureSuccessStatusCode();
         
         var content = await response.Content.ReadAsStringAsync();
-        Service.Log.Debug($"Response: {content}");
+        Service.Log.Debug($"API 回应: {content}");
         
         var rpcResponse = JsonSerializer.Deserialize<RpcResponse>(content);
         if (rpcResponse?.Error != null) 

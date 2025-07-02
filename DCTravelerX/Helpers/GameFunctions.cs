@@ -1,12 +1,15 @@
 using System;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using DCTravelerX.Infos;
 using FFXIVClientStructs.FFXIV.Application.Network;
 using FFXIVClientStructs.FFXIV.Client.System.Framework;
+using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
+using FFXIVClientStructs.FFXIV.Component.GUI;
 
-namespace DCTravelerX;
+namespace DCTravelerX.Helpers;
 
 internal static unsafe class GameFunctions
 {
@@ -30,6 +33,48 @@ internal static unsafe class GameFunctions
     {
         ReturnToTitlePtr(AgentLobby.Instance());
         Service.Log.Information("返回标题界面");
+    }
+
+    public static void OpenWaitAddon(string message)
+    {
+        var instance = RaptureAtkModule.Instance();
+
+        var row = instance->AddonNames.Select((name, index) => new { Name = name.ToString(), Index = index })
+                                      .FirstOrDefault(x => x.Name == "LobbyDKT").Index;
+        
+        var values = stackalloc AtkValue[3];
+        values[0].SetManagedString($"{message}");
+        values[1].SetUInt(0);
+        instance->OpenAddon((uint)row, 2, values, null, 0, 0, 0);
+
+        CloseTitleLogoAddon();
+    }
+    
+    public static void UpdateWaitAddon(string message)
+    {
+        var addon = (AtkUnitBase*)Service.GameGui.GetAddonByName("LobbyDKT");
+        if (addon == null) return;
+
+        CloseTitleLogoAddon();
+        
+        addon->AtkValues[0].SetManagedString(message);
+        addon->OnRefresh(addon->AtkValuesCount, addon->AtkValues);
+    }
+
+    public static void CloseWaitAddon()
+    {
+        var addon = (AtkUnitBase*)Service.GameGui.GetAddonByName("LobbyDKT");
+        if (addon == null) return;
+
+        addon->Close(true);
+    }
+
+    public static void CloseTitleLogoAddon()
+    {
+        var logoAddon = (AtkUnitBase*)Service.GameGui.GetAddonByName("_TitleLogo");
+        if (logoAddon == null) return;
+        
+        logoAddon->IsVisible = false;
     }
 
     public static void RefreshGameServer()
@@ -83,7 +128,7 @@ internal static unsafe class GameFunctions
         Service.Log.Information($"修改游戏大厅地址: LobbyHost - {lobbyHost}, SaveDataBankHost - {saveDataHost}, GmHost - {gmServerHost}");
     }
 
-    public static int GetXLDcTravelerPort()
+    public static int GetLauncherDCTravelPort()
     {
         var          port       = 0;
         var          gameWindow = GameWindow.Instance();

@@ -9,23 +9,16 @@ namespace DCTravelerX.Windows;
 
 internal class MessageBoxWindow : Window, IDisposable
 {
-    public string Title;
-
-    public string Message;
-
-    public MessageBoxType Type;
-    
-    public MessageBoxResult Result;
-
-    public bool ShowWebsite;
-
-    public object? Userdata;
-
-    public Action<MessageBoxWindow, object?>? Callback;
-
+    public readonly  string                                 Title;
+    public readonly  string                                 Message;
+    public readonly  MessageBoxType                         Type;
+    public readonly  object?                                Userdata;
+    public readonly  Action<MessageBoxWindow, object?>?     Callback;
     private readonly TaskCompletionSource<MessageBoxResult> messageTaskCompletionSource;
-
-    public readonly WindowSystem WindowSystem;
+    public readonly  WindowSystem                           WindowSystem;
+    
+    public bool             ShowWebsite;
+    public MessageBoxResult Result;
 
     public MessageBoxWindow(
         WindowSystem                       windowSystem, string title, string message, MessageBoxType type, object? userdata = null,
@@ -128,14 +121,14 @@ internal class MessageBoxWindow : Window, IDisposable
                 break;
 
             case MessageBoxType.YesNo:
-                if (ImGui.Button("是"))
+                if (ImGui.Button("确认"))
                 {
                     IsOpen = false;
                     Result = MessageBoxResult.Yes;
                 }
 
                 ImGui.SameLine();
-                if (ImGui.Button("否"))
+                if (ImGui.Button("取消"))
                 {
                     IsOpen = false;
                     Result = MessageBoxResult.No;
@@ -144,14 +137,14 @@ internal class MessageBoxWindow : Window, IDisposable
                 break;
 
             case MessageBoxType.YesNoCancel:
-                if (ImGui.Button("是"))
+                if (ImGui.Button("确认"))
                 {
                     IsOpen = false;
                     Result = MessageBoxResult.Yes;
                 }
 
                 ImGui.SameLine();
-                if (ImGui.Button("否"))
+                if (ImGui.Button("拒绝"))
                 {
                     IsOpen = false;
                     Result = MessageBoxResult.No;
@@ -169,9 +162,9 @@ internal class MessageBoxWindow : Window, IDisposable
 
         if (ShowWebsite)
         {
-            ImGui.Text("似乎出错了, 请去官方页面处理");
+            ImGui.Text("超域旅行失败, 请查看上方报错提供的指引, 若无有效信息, 请去官网处理");
             
-            if (ImGui.Button("打开[超域旅行]")) 
+            if (ImGui.Button("打开 [超域旅行]")) 
                 OpenUrl("https://ff14bjz.sdo.com/RegionKanTelepo?");
             
             ImGui.SameLine();
@@ -189,5 +182,5 @@ internal class MessageBoxWindow : Window, IDisposable
 
     private void Close() => WindowSystem.RemoveWindow(this);
 
-    public void Dispose() { }
+    public void Dispose() => Close();
 }

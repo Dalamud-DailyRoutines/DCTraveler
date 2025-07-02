@@ -68,15 +68,13 @@ public class WindowManager
         internal static void Init()
         {
             AddWindow(new WorldSelectorWindows());
-            AddWindow(new WaitingWindow());
-            AddWindow(new DcGroupSelectorWindow());
+            AddWindow(new DCGroupSelectorWindow());
         }
 
         internal static void Uninit()
         {
             Get<WorldSelectorWindows>()?.Dispose();
-            Get<WaitingWindow>()?.Dispose();
-            Get<DcGroupSelectorWindow>()?.Dispose();
+            Get<DCGroupSelectorWindow>()?.Dispose();
         }
     }
 }

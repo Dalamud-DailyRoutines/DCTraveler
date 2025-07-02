@@ -4,21 +4,24 @@ using System.Numerics;
 using System.Threading.Tasks;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
+using DCTravelerX.Helpers;
 using DCTravelerX.Infos;
 using ImGuiNET;
 
 namespace DCTravelerX.Windows;
 
-internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.NoCollapse), IDisposable
+internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.AlwaysAutoResize), IDisposable
 {
+    private TaskCompletionSource<SelectWorldResult>? selectWorldTaskCompletionSource;
+    
     private          bool           showSourceWorld = true;
     private          bool           showTargetWorld = true;
     private          bool           isBack;
-    private          int            currentDcIndex;
+    private          int            currentDCIndex;
     private          int            currentWorldIndex;
     private          string[]       dc    = [];
     private readonly List<string[]> world = [];
-    private          int            targetDcIndex;
+    private          int            targetDCIndex;
     private          int            targetWorldIndex;
     private          List<Area>     areas = [];
 
@@ -26,20 +29,24 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
     {
         var viewport = ImGui.GetMainViewport();
         var center   = viewport.GetCenter();
-        ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
+        
+        ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new(4f));
         base.PreDraw();
     }
 
     public override void Draw()
     {
+        var windowBackground = ImGui.GetColorU32(ImGuiCol.WindowBg);
+        var columnWidth      = ImGui.CalcTextSize("一二三四五六七八九十").X * 2;
+        
         if (showSourceWorld)
         {
-            using (var table = ImRaii.Table("##TableCurrent", 2))
+            using (var table = ImRaii.Table("##TableCurrent", 2, ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersInnerV))
             {
                 if (table)
                 {
-                    ImGui.TableSetupColumn("当前大区",  ImGuiTableColumnFlags.WidthStretch);
-                    ImGui.TableSetupColumn("当前服务器", ImGuiTableColumnFlags.WidthStretch);
+                    ImGui.TableSetupColumn("当前大区",  ImGuiTableColumnFlags.WidthFixed, columnWidth);
+                    ImGui.TableSetupColumn("当前服务器", ImGuiTableColumnFlags.WidthFixed, columnWidth);
                     
                     ImGui.TableHeadersRow();
 
@@ -47,23 +54,25 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                     
                     ImGui.TableNextColumn();
                     ImGui.SetNextItemWidth(-1f);
-                    ImGui.ListBox("##CurrentDc", ref currentDcIndex, dc, dc.Length, 4);
+                    using (ImRaii.PushColor(ImGuiCol.FrameBg, windowBackground))
+                        ImGui.ListBox("##CurrentDc", ref currentDCIndex, dc, dc.Length, 8);
                     
                     ImGui.TableNextColumn();
                     ImGui.SetNextItemWidth(-1f);
-                    ImGui.ListBox("##CurrentServer", ref currentWorldIndex, world[currentDcIndex], world[targetDcIndex].Length, 7);
+                    using (ImRaii.PushColor(ImGuiCol.FrameBg, windowBackground))
+                        ImGui.ListBox("##CurrentServer", ref currentWorldIndex, world[currentDCIndex], world[targetDCIndex].Length, 8);
                 }
             }
         }
 
         if (showTargetWorld)
         {
-            using (var table = ImRaii.Table("##TableCurrent", 2))
+            using (var table = ImRaii.Table("##TableCurrent", 2, ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersInnerV))
             {
                 if (table)
                 {
-                    ImGui.TableSetupColumn("目标大区",  ImGuiTableColumnFlags.WidthStretch);
-                    ImGui.TableSetupColumn("目标服务器", ImGuiTableColumnFlags.WidthStretch);
+                    ImGui.TableSetupColumn("目标大区",  ImGuiTableColumnFlags.WidthFixed, columnWidth);
+                    ImGui.TableSetupColumn("目标服务器", ImGuiTableColumnFlags.WidthFixed, columnWidth);
                     
                     ImGui.TableHeadersRow();
 
@@ -71,40 +80,39 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                     
                     ImGui.TableNextColumn();
                     ImGui.SetNextItemWidth(-1f);
-                    ImGui.ListBox("##TargetDC", ref targetDcIndex, dc, dc.Length, 4);
+                    using (ImRaii.PushColor(ImGuiCol.FrameBg, windowBackground))
+                        ImGui.ListBox("##TargetDC", ref targetDCIndex, dc, dc.Length, 8);
                     
                     ImGui.TableNextColumn();
                     ImGui.SetNextItemWidth(-1f);
-                    ImGui.ListBox("##TargetServer", ref targetWorldIndex, world[targetDcIndex], world[targetDcIndex].Length, 7);
+                    using (ImRaii.PushColor(ImGuiCol.FrameBg, windowBackground))
+                        ImGui.ListBox("##TargetServer", ref targetWorldIndex, world[targetDCIndex], world[targetDCIndex].Length, 8);
                 }
             }
         }
-
-        var sameDc = currentDcIndex == targetDcIndex;
-        using (ImRaii.Disabled(sameDc))
+        
+        var sameDC = currentDCIndex == targetDCIndex;
+        using (ImRaii.Disabled(sameDC))
         {
-            if (ImGui.Button(isBack ? "返回" : "传送"))
+            if (ImGuiOm.ButtonSelectable(isBack ? "返回" : "传送"))
             {
                 selectWorldTaskCompletionSource?.SetResult(
                     new SelectWorldResult
                     {
-                        Source = areas[currentDcIndex].GroupList[currentWorldIndex],
-                        Target = areas[targetDcIndex].GroupList[targetWorldIndex]
+                        Source = areas[currentDCIndex].GroupList[currentWorldIndex],
+                        Target = areas[targetDCIndex].GroupList[targetWorldIndex]
                     });
                 IsOpen = false;
             }
         }
         
-        ImGui.SameLine();
-        if (ImGui.Button("取消"))
+        if (ImGuiOm.ButtonSelectable("取消"))
         {
             selectWorldTaskCompletionSource?.SetResult(null!);
             IsOpen = false;
         }
     }
-
-    private TaskCompletionSource<SelectWorldResult>? selectWorldTaskCompletionSource;
-
+    
     public Task<SelectWorldResult> OpenTravelWindow(
         bool    showSource,     bool    showTarget, bool isBackHome, List<Area> areasData, string? currentDcName = null, string? currentWorldCode = null,
         string? targetDcName = null, string? targetWorldCode = null)
@@ -122,9 +130,9 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
             dc[i] = areasData[i].AreaName;
             world.Add(new string[areasData[i].GroupList.Count]);
             if (currentDcName == areasData[i].AreaName)
-                currentDcIndex = i;
+                currentDCIndex = i;
             else if (targetDcName == areasData[i].AreaName)
-                targetDcIndex = i;
+                targetDCIndex = i;
             for (var j = 0; j < areasData[i].GroupList.Count; j++)
             {
                 if (currentDcName == areasData[i].AreaName && areasData[i].GroupList[j].GroupCode == currentWorldCode)

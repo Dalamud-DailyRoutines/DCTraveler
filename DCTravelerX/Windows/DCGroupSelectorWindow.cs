@@ -10,12 +10,12 @@ using ImGuiNET;
 
 namespace DCTravelerX.Windows;
 
-internal class DcGroupSelectorWindow : Window, IDisposable
+internal class DCGroupSelectorWindow : Window, IDisposable
 {
     private SdoArea[]                     sdoAreas                     = null!;
     private TaskCompletionSource<string?> areaNameTaskCompletionSource = null!;
     
-    public DcGroupSelectorWindow() : base("选择大区", ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoSavedSettings)
+    public DCGroupSelectorWindow() : base("选择大区", ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoSavedSettings)
     {
         SizeConstraints = new WindowSizeConstraints
         {
@@ -38,8 +38,8 @@ internal class DcGroupSelectorWindow : Window, IDisposable
             return;
         }
 
-        var tableWidth = (ImGui.GetContentRegionAvail().X / Plugin.DcTravelClient!.CachedAreas.Count()) - 10;
-        foreach (var dc in Plugin.DcTravelClient?.CachedAreas)
+        var tableWidth = (ImGui.GetContentRegionAvail().X / DCTravelClient.Instance().CachedAreas.Count) - 10;
+        foreach (var dc in DCTravelClient.Instance().CachedAreas)
         {
             DrawDcGroup(dc, tableWidth);
             ImGui.SameLine();
@@ -50,7 +50,7 @@ internal class DcGroupSelectorWindow : Window, IDisposable
     {
         var tableStartPos = ImGui.GetCursorScreenPos();
         using (ImRaii.Group())
-        using (var table = ImRaii.Table($"{area.AreaName} Content", 1, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg))
+        using (var table = ImRaii.Table($"{area.AreaName} Content", 1))
         {
             if (table)
             {
@@ -70,21 +70,15 @@ internal class DcGroupSelectorWindow : Window, IDisposable
         
         ImGui.SetCursorScreenPos(tableStartPos);
         using (ImRaii.PushColor(ImGuiCol.Button,        new Vector4(0, 0, 0, 0)))
-        using (ImRaii.PushColor(ImGuiCol.ButtonHovered,        new Vector4(0.15f, 0.6f, 1f, 0.30f)))
-        using (ImRaii.PushColor(ImGuiCol.ButtonActive,        new Vector4(0.1f,  0.35f, 0.8f, 0.50f)))
+        using (ImRaii.PushColor(ImGuiCol.ButtonHovered, new Vector4(0.15f, 0.6f, 1f, 0.30f)))
+        using (ImRaii.PushColor(ImGuiCol.ButtonActive,  new Vector4(0.1f, 0.35f, 0.8f, 0.50f)))
         {
             if (ImGui.Button($"##{area.AreaName} Click", tableSize))
             {
                 Task.Run(async () =>
                 {
-                    try
-                    {
-                        await Plugin.SelectDcAndLogin(area.AreaName);
-                    }
-                    catch (Exception ex)
-                    {
-                        await MessageBoxWindow.Show(WindowManager.WindowSystem, "选择大区", $"大区切换失败:\n{ex}", showWebsite: false);
-                    }
+                    try { await Plugin.SelectDcAndLogin(area.AreaName); }
+                    catch (Exception ex) { await MessageBoxWindow.Show(WindowManager.WindowSystem, "选择大区", $"大区切换失败:\n{ex}", showWebsite: false); }
                 });
                 IsOpen = false;
             }
