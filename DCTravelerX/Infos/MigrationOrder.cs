@@ -19,9 +19,6 @@ public class MigrationOrder
     [JsonPropertyName("groupName")]
     public string GroupName { get; set; }
 
-    [JsonPropertyName("status")]
-    public TravelStatus Status { get; set; }
-
     [JsonPropertyName("createTime")]
     public string CreateTime { get; set; }
 } 

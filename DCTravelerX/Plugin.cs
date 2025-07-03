@@ -45,16 +45,15 @@ public sealed class Plugin : IDalamudPlugin
 
     public static unsafe void LoginInGame()
     {
-        var ptr = Service.GameGui.GetAddonByName("_TitleMenu");
-        if (ptr == 0)
-            return;
-        var atkUnitBase          = (AtkUnitBase*)ptr;
-        var loginGameButton      = atkUnitBase->GetComponentButtonById(4);
+        var addon = (AtkUnitBase*)Service.GameGui.GetAddonByName("_TitleMenu");
+        if (addon == null) return;
+        
+        var loginGameButton      = addon->GetComponentButtonById(4);
         var loginGameButtonEvent = loginGameButton->AtkResNode->AtkEventManager.Event;
-        Service.Framework.RunOnFrameworkThread(() => atkUnitBase->ReceiveEvent(AtkEventType.ButtonClick, 1, loginGameButtonEvent));
+        Service.Framework.RunOnFrameworkThread(() => addon->ReceiveEvent(AtkEventType.ButtonClick, 1, loginGameButtonEvent));
     }
 
-    public static async Task SelectDcAndLogin(string name)
+    public static async Task SelectDCAndLogin(string name)
     {
         var newTicket = await DCTravelClient.Instance().RefreshGameSessionId();
         
@@ -64,8 +63,6 @@ public sealed class Plugin : IDalamudPlugin
         LoginInGame();
     }
 
-    public void Dispose()
-    {
+    public void Dispose() => 
         Service.Uninit();
-    }
 }

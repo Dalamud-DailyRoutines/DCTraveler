@@ -32,7 +32,7 @@ internal class DCTravelClient
         httpClient = new HttpClient();
         Task.Run(() =>
         {
-            CachedAreas = QueryGroupListTravelSource().Result;
+            CachedAreas = QueryGroupListTravelSource().GetAwaiter().GetResult();
             IsValid     = true;
         });
     }
@@ -91,4 +91,7 @@ internal class DCTravelClient
 
     public async Task<string> RefreshGameSessionId() => 
         await RequestApi<string>([]);
+
+    public async Task MigrationConfirmOrder(string orderId, bool confirmed) => 
+        await RequestApi<string>([orderId, confirmed]);
 }

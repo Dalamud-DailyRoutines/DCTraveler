@@ -18,11 +18,14 @@ public static class ContextMenuManager
 {
     private static readonly Dictionary<MigrationStatus, string> StatusText = new()
     {
-        [MigrationStatus.Failed]          = "超域旅行失败",
-        [MigrationStatus.InPrepare]       = "检查目标大区角色信息中...",
-        [MigrationStatus.InQueue]         = "超域旅行排队中...",
-        [MigrationStatus.Completed]       = "超域旅行完成",
-        [MigrationStatus.UnkownCompleted] = "超域旅行完成",
+        [MigrationStatus.TeleportFailed] = "超域旅行传送失败",
+        [MigrationStatus.PreCheckFailed] = "超域旅行预检查失败",
+        [MigrationStatus.InPrepare0]     = "检查目标大区角色信息中...",
+        [MigrationStatus.InPrepare1]     = "检查目标大区角色信息中...",
+        [MigrationStatus.NeedConfirm]    = "需要确认传送",
+        [MigrationStatus.Processing3]    = "超域旅行排队中...",
+        [MigrationStatus.Processing4]    = "超域旅行排队中...",
+        [MigrationStatus.Completed]      = "超域旅行完成",
     };
     
     internal static void Init() => 
@@ -97,17 +100,17 @@ public static class ContextMenuManager
                                            .First(x => x.GroupCode == currentWorld.InternalName.ExtractText());
 
                 var orderID           = string.Empty;
-                var targetDcGroupName = string.Empty;
+                var targetDCGroupName = string.Empty;
                 if (isBack)
                 {
                     var targetWorld = worldSheet.GetRow((uint)targetWorldId);
-                    targetDcGroupName = targetWorld.DataCenter.Value.Name.ToString();
+                    targetDCGroupName = targetWorld.DataCenter.Value.Name.ToString();
 
-                    var order = GetTravelingOrder(contentId);
+                    var order = await GetTravelingOrder(contentId);
                     Service.Log.Information($"找到返回原始大区订单: {order.OrderId}");
 
                     await Service.Framework.RunOnFrameworkThread(GameFunctions.ReturnToTitle);
-                    await Service.Framework.RunOnFrameworkThread(() => GameFunctions.OpenWaitAddon($"正在返回原始大区: {targetDcGroupName}"));
+                    await Service.Framework.RunOnFrameworkThread(() => GameFunctions.OpenWaitAddon($"正在返回原始大区: {targetDCGroupName}"));
                     orderID = await instance.TravelBack(order.OrderId, currentGroup.GroupId, currentGroup.GroupCode, currentGroup.GroupName);
                     Service.Log.Information($"获取到订单号为: {orderID}");
                 }
@@ -126,7 +129,7 @@ public static class ContextMenuManager
                     var chara = new Character { ContentId = contentId.ToString(), Name = currentCharacterName };
                     Service.Log.Info($"超域旅行: {selectedResult.Target.AreaName}@{selectedResult.Target.GroupName}");
 
-                    targetDcGroupName = selectedResult.Target.AreaName;
+                    targetDCGroupName = selectedResult.Target.AreaName;
                     var waitTime = await instance.QueryTravelQueueTime(selectedResult.Target.AreaId, selectedResult.Target.GroupId);
                     Service.Log.Info($"预计花费时间: {waitTime} 分钟");
 
@@ -134,7 +137,7 @@ public static class ContextMenuManager
                     if (costMsgBox == MessageBoxResult.Yes)
                     {
                         await Service.Framework.RunOnFrameworkThread(GameFunctions.ReturnToTitle);
-                        await Service.Framework.RunOnFrameworkThread(() => GameFunctions.OpenWaitAddon($"正在前往目标大区: {targetDcGroupName}\n预计等待时间: {waitTime} 分钟"));
+                        await Service.Framework.RunOnFrameworkThread(() => GameFunctions.OpenWaitAddon($"正在前往目标大区: {targetDCGroupName}\n预计等待时间: {waitTime} 分钟"));
                         orderID = await instance.TravelOrder(selectedResult.Target, selectedResult.Source, chara);
                         Service.Log.Information($"获取到订单号为: {orderID}");
                     }
@@ -146,8 +149,7 @@ public static class ContextMenuManager
                 }
 
                 Service.AddonLifecycle.RegisterListener(AddonEvent.PreDraw, "_TitleLogo", OnAddonTitleLogo);
-                await WaitingForOrder(orderID);
-                await Plugin.SelectDcAndLogin(targetDcGroupName);
+                await WaitingForOrder(orderID, targetDCGroupName);
             }
             catch (Exception ex)
             {
@@ -162,37 +164,56 @@ public static class ContextMenuManager
         });
     }
 
-    private static async Task WaitingForOrder(string orderID)
+    private static async Task WaitingForOrder(string orderID, string targetDCGroupName)
     {
-        OrderStatus status;
-        
         GameFunctions.CloseTitleLogoAddon();
         while (true)
         {
-            status = await DCTravelClient.Instance().QueryOrderStatus(orderID);
+            var status = await DCTravelClient.Instance().QueryOrderStatus(orderID);
             Service.Log.Information($"当前订单状态: {status.Status}");
             
             GameFunctions.UpdateWaitAddon(StatusText.GetValueOrDefault(status.Status, "未知状态"));
             
-            if (status.Status is not (MigrationStatus.InPrepare or MigrationStatus.InQueue)) break;
-            await Task.Delay(2_000);
-        }
+            if (status.Status == MigrationStatus.Completed)
+                break;
+            
+            if (status.Status is MigrationStatus.TeleportFailed or MigrationStatus.PreCheckFailed)
+                throw new Exception($"传送失败: {status.CheckMessage} {status.MigrationMessage}");
+            
+            if (status.Status == MigrationStatus.NeedConfirm)
+            {
+                var confirmResult = await MessageBoxWindow.Show(WindowManager.WindowSystem, 
+                                                                "超域旅行确认", 
+                                                                $"是否确认要超域旅行至大区: {targetDCGroupName}", 
+                                                                MessageBoxType.OkCancel);
+                await DCTravelClient.Instance().MigrationConfirmOrder(orderID, confirmResult == MessageBoxResult.Ok);
+                if (confirmResult != MessageBoxResult.Ok)
+                    return;
+                
+                continue;
+            }
 
-        if (status.Status == MigrationStatus.Failed) 
-            throw new Exception(status.CheckMessage);
+            if (status.Status is not (MigrationStatus.InPrepare0 or MigrationStatus.InPrepare1 or
+                MigrationStatus.Processing3 or MigrationStatus.Processing4))
+                continue;
+
+            await Task.Delay(2000);
+        }
+        
+        await Plugin.SelectDCAndLogin(targetDCGroupName);
     }
 
-    private static MigrationOrder GetTravelingOrder(ulong contentId)
+    private static async Task<MigrationOrder> GetTravelingOrder(ulong contentId)
     {
         var contentIdStr   = contentId.ToString();
         var currentPageNum = 1;
         while (true)
         {
-            var orders = DCTravelClient.Instance()!.QueryMigrationOrders(currentPageNum).Result;
-            var order  = orders.Orders.First(x => x.Status == TravelStatus.Arrival && x.ContentId == contentIdStr);
-            if (order == null)
+            var orders = await DCTravelClient.Instance().QueryMigrationOrders(currentPageNum);
+            if (orders is not { Orders.Length: > 0 } || 
+                orders.Orders.First(x => x.ContentId == contentIdStr) is not { } order)
             {
-                var maxPageNum     = orders.TotalPageNum;
+                var maxPageNum = orders.TotalPageNum;
                 currentPageNum++;
                 if (currentPageNum > maxPageNum)
                 {
