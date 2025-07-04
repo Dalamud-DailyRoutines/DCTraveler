@@ -12,7 +12,7 @@ using Lumina.Excel.Sheets;
 
 namespace DCTravelerX.Managers;
 
-public class TravelManager
+public static class TravelManager
 {
     private static readonly Dictionary<MigrationStatus, string> StatusText = new()
     {
@@ -25,130 +25,6 @@ public class TravelManager
         [MigrationStatus.Processing4] = "超域旅行排队中...",
         [MigrationStatus.Completed] = "超域旅行完成"
     };
-
-    //传送获取一个订单号
-    public static async Task<string> TravelIpc(
-        int currentWorldId, int targetWorldId, ulong contentId, string currentCharacterName)
-    {
-        var orderID = string.Empty;
-        try
-        {
-            if (Plugin.LastErrorMessage != null)
-            {
-                return orderID;
-            }
-
-            if (DCTravelClient.Instance() is not { IsValid: true } instance)
-            {
-                Service.Log.Error("无法连接至 XIVLauncherCN 提供的超域旅行 API 服务");
-                return orderID;
-            }
-
-            var worldSheet = Service.DataManager.GetExcelSheet<World>();
-            var currentWorldname = worldSheet.GetRow((uint)currentWorldId).Name.ExtractText();
-            var targetWorldname = worldSheet.GetRow((uint)targetWorldId).Name.ExtractText();
-            var areas = await instance.QueryGroupListTravelTarget(7, 5); //获取全部大区信息
-            var f1 = TryGetGroup(areas, currentWorldname, out var Source);
-            var f2 = TryGetGroup(areas, targetWorldname, out var Target);
-            if (f1 && f2)
-            {
-                var chara = new Character { ContentId = contentId.ToString(), Name = currentCharacterName };
-                var waitTime =
-                    await instance.QueryTravelQueueTime(Target.AreaId,
-                                                        Target.GroupId);
-                orderID = await instance.TravelOrder(Target, Source, chara);
-                return orderID;
-            }
-
-            return orderID;
-        }
-        catch (Exception e)
-        {
-            Service.Log.Error(e.Message);
-            return orderID;
-        }
-    }
-
-    public static async Task<string> TravelBackIpc(
-        int currentWorldId, ulong contentId)
-    {
-        var orderID = string.Empty;
-        if (Plugin.LastErrorMessage != null)
-        {
-            return orderID;
-        }
-
-        if (DCTravelClient.Instance() is not { IsValid: true } instance)
-        {
-            Service.Log.Error("无法连接至 XIVLauncherCN 提供的超域旅行 API 服务");
-            return orderID;
-        }
-
-        try
-        {
-            var areas = await instance.QueryGroupListTravelTarget(7, 5);
-            var worldSheet = Service.DataManager.GetExcelSheet<World>();
-            var order = await GetTravelingOrder(contentId);
-            Service.Log.Information($"找到返回原始大区订单: {order.OrderId}");
-            var currentWorlname = worldSheet.GetRow((uint)currentWorldId).Name.ExtractText();
-
-            Service.Log.Debug($"{currentWorlname}");
-            var f1 = TryGetGroup(areas, currentWorlname, out var source);
-            if (!f1)
-            {
-                return orderID;
-            }
-
-            await Service.Framework.RunOnFrameworkThread(() => Thread.Sleep(2000));
-            orderID = await instance.TravelBack(order.OrderId, source.GroupId, source.GroupCode,
-                                                source.GroupName);
-            Service.Log.Information($"获取到订单号为: {orderID}");
-            return orderID;
-        }
-        catch (Exception e)
-        {
-            Service.Log.Error(e.Message);
-            return orderID;
-        }
-    }
-
-    private static bool TryGetGroup(List<Area> areas, string worldname, out Group t)
-    {
-        var matchedGroup = areas.SelectMany(area => area.GroupList)
-                                .FirstOrDefault(group => group.GroupName == worldname);
-
-        t = matchedGroup ?? new Group();
-        return matchedGroup != null;
-    }
-
-    //获取订单状态的
-    public static async Task<bool> GetorderStatus(string orderId)
-    {
-        GameFunctions.CloseTitleLogoAddon();
-        while (true)
-        {
-            var status = await DCTravelClient.Instance().QueryOrderStatus(orderId);
-            switch (status.Status)
-            {
-                case MigrationStatus.Completed:
-                    return true;
-                case MigrationStatus.TeleportFailed or MigrationStatus.PreCheckFailed:
-                    return false;
-                case MigrationStatus.NeedConfirm:
-                {
-                    //默认确认了
-                    await DCTravelClient.Instance().MigrationConfirmOrder(orderId, true);
-                    continue;
-                }
-            }
-
-            if (status.Status is not (MigrationStatus.InPrepare0 or MigrationStatus.InPrepare1 or
-                MigrationStatus.Processing3 or MigrationStatus.Processing4))
-                continue;
-            await Task.Delay(2000);
-        }
-    }
-
 
     public static void Travel(
         int targetWorldId, int currentWorldId, ulong contentId, bool isBack, string currentCharacterName)
@@ -250,7 +126,7 @@ public class TravelManager
         });
     }
 
-    private static async Task<MigrationOrder> GetTravelingOrder(ulong contentId)
+    public static async Task<MigrationOrder> GetTravelingOrder(ulong contentId)
     {
         var contentIdStr = contentId.ToString();
         var currentPageNum = 1;
