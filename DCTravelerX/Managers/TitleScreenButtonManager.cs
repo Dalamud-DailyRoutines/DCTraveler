@@ -12,7 +12,7 @@ public static class TitleScreenButtonManager
 
     private static void AddEntry()
     {
-        var icon = Service.TextureProvider.GetFromFile(Path.Combine(Service.PI.AssemblyLocation.DirectoryName!, "tsm.png"));
+        var icon = Service.TextureProvider.GetFromFile(Path.Combine(Service.PI.AssemblyLocation.DirectoryName!, "Assets", "TitleScreenButton.png"));
         Button = Service.TitleScreenMenu.AddEntry("大区选择", icon, WindowManager.OpenDcSelectWindow);
         
         Service.UIBuilder.Draw -= AddEntry;

@@ -3,6 +3,7 @@ using System.Numerics;
 using System.Threading.Tasks;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
+using Dalamud.Utility.Numerics;
 using DCTravelerX.Helpers;
 using DCTravelerX.Infos;
 using DCTravelerX.Managers;
@@ -32,7 +33,7 @@ internal class DCGroupSelectorWindow() : Window("选择大区",
             return;
         }
 
-        var columnWidth = ImGui.CalcTextSize("一二三四五六七八九十").X * 2;
+        var columnWidth = ImGui.CalcTextSize("一二三四五六七八九十").X;
         foreach (var dc in DCTravelClient.CachedAreas)
         {
             DrawDcGroup(dc, columnWidth);
@@ -60,7 +61,7 @@ internal class DCGroupSelectorWindow() : Window("选择大区",
             }
         }
 
-        var tableSize = ImGui.GetItemRectSize() + new Vector2(width, 0);
+        var tableSize = ImGui.GetItemRectSize().WithY(0) + new Vector2(width, 9 * ImGui.GetTextLineHeightWithSpacing());
 
         ImGui.SetCursorScreenPos(tableStartPos);
         using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0, 0, 0, 0)))

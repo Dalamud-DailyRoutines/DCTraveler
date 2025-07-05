@@ -13,11 +13,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Content Include="DCTravelerX.json">
-          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </Content>
-        <Content Include="tsm.png">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <Content Include="Assets\TitleScreenButton.png">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
     </ItemGroup>
 
