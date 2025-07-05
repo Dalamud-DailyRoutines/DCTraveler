@@ -27,13 +27,13 @@ public static class TravelManager
     };
 
     public static void Travel(
-        int targetWorldId, int currentWorldId, ulong contentId, bool isBack, string currentCharacterName)
+        int targetWorldId, int currentWorldId, ulong contentId, bool isBack, string currentCharacterName, string? errorMessage = null)
     {
         var title = isBack ? "返回至原始大区" : "超域旅行";
 
-        if (Plugin.LastErrorMessage != null)
+        if (errorMessage != null)
         {
-            MessageBoxWindow.Show(WindowManager.WindowSystem, title, Plugin.LastErrorMessage!);
+            MessageBoxWindow.Show(WindowManager.WindowSystem, title, errorMessage);
             return;
         }
 
@@ -185,7 +185,7 @@ public static class TravelManager
             await Task.Delay(2000);
         }
 
-        await Plugin.SelectDCAndLogin(targetDCGroupName);
+        await GameFunctions.SelectDCAndLogin(targetDCGroupName);
     }
 
     private static void OnAddonTitleLogo(AddonEvent type, AddonArgs args) =>

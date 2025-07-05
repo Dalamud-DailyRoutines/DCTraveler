@@ -53,6 +53,9 @@ public class WindowManager
     public static T? Get<T>() where T : Window
         => WindowSystem?.Windows.FirstOrDefault(x => x.GetType() == typeof(T)) as T;
 
+    public static void OpenDcSelectWindow() =>
+        Get<DCGroupSelectorWindow>()?.Open(ServerDataManager.SdoAreas);
+
     internal static void Uninit()
     {
         Service.UIBuilder.Draw -= DrawWindows;

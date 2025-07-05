@@ -1,8 +1,11 @@
+using System;
 using Dalamud.Game;
 using Dalamud.Interface;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using DCTravelerX.Helpers;
+using DCTravelerX.Infos;
 using DCTravelerX.Managers;
 
 namespace DCTravelerX;
@@ -30,19 +33,30 @@ public class Service
         
         PI.Create<Service>();
         
-        FontManager.Init();
-        WindowManager.Init();
-        TitleScreenButtonManager.Init();
-        ContextMenuManager.Init();
-        IpcManager.Init();
+        try
+        {
+            ServerDataManager.Init();
+            FontManager.Init();
+            WindowManager.Init();
+            TitleScreenButtonManager.Init();
+            ContextMenuManager.Init();
+            IPCManager.Init();
+            
+            _ = DCTravelClient.Instance(GameFunctions.GetLauncherDCTravelPort());
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"服务初始化失败: {ex}");
+        }
     }
 
     public static void Uninit()
     {
+        IPCManager.Uninit();
         ContextMenuManager.Uninit();
         TitleScreenButtonManager.Uninit();
         WindowManager.Uninit();
         FontManager.Uninit();
-        IpcManager.Uninit();
+        ServerDataManager.Uninit();
     }
 }

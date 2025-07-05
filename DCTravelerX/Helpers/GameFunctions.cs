@@ -3,19 +3,21 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using DCTravelerX.Infos;
+using DCTravelerX.Managers;
 using FFXIVClientStructs.FFXIV.Application.Network;
 using FFXIVClientStructs.FFXIV.Client.System.Framework;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
+using Task = System.Threading.Tasks.Task;
 
 namespace DCTravelerX.Helpers;
 
-internal static unsafe class GameFunctions
+internal static class GameFunctions
 {
-    private delegate void ReturnToTitleDelegate(AgentLobby* agentLobby);
+    private unsafe delegate void ReturnToTitleDelegate(AgentLobby* agentLobby);
 
-    private delegate void ReleaseLobbyContextDelegate(NetworkModule* agentLobby);
+    private unsafe delegate void ReleaseLobbyContextDelegate(NetworkModule* agentLobby);
 
     private static readonly ReturnToTitleDelegate       ReturnToTitlePtr;
     private static readonly ReleaseLobbyContextDelegate ReleaseLobbyContextPtr;
@@ -29,13 +31,13 @@ internal static unsafe class GameFunctions
         ReleaseLobbyContextPtr = Marshal.GetDelegateForFunctionPointer<ReleaseLobbyContextDelegate>(releaseLobbyContextAddr);
     }
 
-    public static void ReturnToTitle()
+    public static unsafe void ReturnToTitle()
     {
         ReturnToTitlePtr(AgentLobby.Instance());
         Service.Log.Information("返回标题界面");
     }
 
-    public static void OpenWaitAddon(string message)
+    public static unsafe void OpenWaitAddon(string message)
     {
         var instance = RaptureAtkModule.Instance();
 
@@ -50,7 +52,7 @@ internal static unsafe class GameFunctions
         CloseTitleLogoAddon();
     }
     
-    public static void UpdateWaitAddon(string message)
+    public static unsafe void UpdateWaitAddon(string message)
     {
         var addon = (AtkUnitBase*)Service.GameGui.GetAddonByName("LobbyDKT");
         if (addon == null) return;
@@ -61,7 +63,7 @@ internal static unsafe class GameFunctions
         addon->OnRefresh(addon->AtkValuesCount, addon->AtkValues);
     }
 
-    public static void CloseWaitAddon()
+    public static unsafe void CloseWaitAddon()
     {
         var addon = (AtkUnitBase*)Service.GameGui.GetAddonByName("LobbyDKT");
         if (addon == null) return;
@@ -69,7 +71,7 @@ internal static unsafe class GameFunctions
         addon->Close(true);
     }
 
-    public static void CloseTitleLogoAddon()
+    public static unsafe void CloseTitleLogoAddon()
     {
         var logoAddon = (AtkUnitBase*)Service.GameGui.GetAddonByName("_TitleLogo");
         if (logoAddon == null) return;
@@ -77,7 +79,7 @@ internal static unsafe class GameFunctions
         logoAddon->IsVisible = false;
     }
 
-    public static void RefreshGameServer()
+    public static unsafe void RefreshGameServer()
     {
         var framework     = Framework.Instance();
         var networkModule = framework->GetNetworkModuleProxy()->NetworkModule;
@@ -90,14 +92,14 @@ internal static unsafe class GameFunctions
         Service.Log.Information("刷新大厅信息");
     }
 
-    public static void ChangeDevTestSid(string sid)
+    public static unsafe void ChangeDevTestSid(string sid)
     {
         var agentLobby = AgentLobby.Instance();
         agentLobby->UnkUtf8Strings[0].SetString(sid);
         Service.Log.Information("筛选 Dev.TestSid");
     }
 
-    public static void ChangeGameServer(string lobbyHost, string saveDataHost, string gmServerHost)
+    public static unsafe void ChangeGameServer(string lobbyHost, string saveDataHost, string gmServerHost)
     {
         var framework     = Framework.Instance();
         var networkModule = framework->GetNetworkModuleProxy()->NetworkModule;
@@ -128,7 +130,7 @@ internal static unsafe class GameFunctions
         Service.Log.Information($"修改游戏大厅地址: LobbyHost - {lobbyHost}, SaveDataBankHost - {saveDataHost}, GmHost - {gmServerHost}");
     }
 
-    public static int GetLauncherDCTravelPort()
+    public static unsafe int GetLauncherDCTravelPort()
     {
         var          port       = 0;
         var          gameWindow = GameWindow.Instance();
@@ -148,5 +150,38 @@ internal static unsafe class GameFunctions
             throw new Exception("未能发现用于超域旅行的端口");
         
         return port;
+    }
+    
+    public static unsafe void LoginInGame()
+    {
+        var addon = (AtkUnitBase*)Service.GameGui.GetAddonByName("_TitleMenu");
+        if (addon == null) return;
+
+        var loginGameButton      = addon->GetComponentButtonById(4);
+        var loginGameButtonEvent = loginGameButton->AtkResNode->AtkEventManager.Event;
+        Service.Framework.RunOnFrameworkThread(
+            () => addon->ReceiveEvent(AtkEventType.ButtonClick, 1, loginGameButtonEvent));
+    }
+    
+    public static void ChangeToSdoArea(string groupName)
+    {
+        var targetArea = ServerDataManager.SdoAreas?.FirstOrDefault(x => x.AreaName == groupName);
+        if (targetArea == null)
+        {
+            Service.Log.Error($"未找到大区: {groupName}");
+            return;
+        }
+        ChangeGameServer(targetArea.AreaLobby, targetArea.AreaConfigUpload, targetArea.AreaGm);
+        RefreshGameServer();
+    }
+
+    public static async Task SelectDCAndLogin(string name)
+    {
+        var newTicket = await DCTravelClient.Instance().RefreshGameSessionId();
+
+        ChangeToSdoArea(name);
+        ChangeDevTestSid(newTicket);
+        CloseWaitAddon();
+        LoginInGame();
     }
 }

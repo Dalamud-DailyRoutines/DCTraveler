@@ -1,9 +1,9 @@
 using System;
-using System.Linq;
 using System.Numerics;
 using System.Threading.Tasks;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
+using DCTravelerX.Helpers;
 using DCTravelerX.Infos;
 using DCTravelerX.Managers;
 using ImGuiNET;
@@ -72,7 +72,7 @@ internal class DCGroupSelectorWindow() : Window("选择大区",
             {
                 Task.Run(async () =>
                 {
-                    try { await Plugin.SelectDCAndLogin(area.AreaName); }
+                    try { await GameFunctions.SelectDCAndLogin(area.AreaName); }
                     catch (Exception ex) { await MessageBoxWindow.Show(WindowManager.WindowSystem, "选择大区", $"大区切换失败:\n{ex}", showWebsite: false); }
                 });
                 IsOpen = false;
