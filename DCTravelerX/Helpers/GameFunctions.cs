@@ -139,7 +139,6 @@ internal static class GameFunctions
         for (var i = 0UL; i < gameWindow->ArgumentCount; i++)
         {
             var arg = gameWindow->GetArgument(i);
-            Service.Log.Debug($"{arg}");
             if (arg.StartsWith(key, StringComparison.OrdinalIgnoreCase))
                 return arg[key.Length..];
         }
