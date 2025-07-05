@@ -16,12 +16,11 @@ internal class DCGroupSelectorWindow() : Window("选择大区",
                                                 ImGuiWindowFlags.NoSavedSettings), IDisposable
 {
     
-    private SdoArea[]                     sdoAreas                     = null!;
     private TaskCompletionSource<string?> areaNameTaskCompletionSource = null!;
 
     public override void Draw()
     {
-        if (sdoAreas == null || sdoAreas.Length == 0)
+        if (ServerDataManager.SdoAreas is not { Length: > 0 })
         {
             ImGui.Text("服务器信息加载失败");
             return;
@@ -33,8 +32,8 @@ internal class DCGroupSelectorWindow() : Window("选择大区",
             return;
         }
 
-        var columnWidth      = ImGui.CalcTextSize("一二三四五六七八九十").X * 2;
-        foreach (var dc in DCTravelClient.Instance().CachedAreas)
+        var columnWidth = ImGui.CalcTextSize("一二三四五六七八九十").X * 2;
+        foreach (var dc in DCTravelClient.CachedAreas)
         {
             DrawDcGroup(dc, columnWidth);
             ImGui.SameLine();
@@ -82,7 +81,6 @@ internal class DCGroupSelectorWindow() : Window("选择大区",
 
     public async Task<string?> Open(SdoArea[] areas)
     {
-        sdoAreas                     = areas;
         IsOpen                       = true;
         areaNameTaskCompletionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
 

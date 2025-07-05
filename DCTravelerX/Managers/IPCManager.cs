@@ -43,12 +43,13 @@ public static class IPCManager
         try
         {
 
-            if (DCTravelClient.Instance() is not { IsValid: true } instance)
+            if (!DCTravelClient.IsValid)
             {
                 Service.Log.Error("无法连接至 XIVLauncherCN 提供的超域旅行 API 服务");
                 return orderID;
             }
 
+            var instance = DCTravelClient.Instance();
             var worldSheet       = Service.DataManager.GetExcelSheet<World>();
             var currentWorldName = worldSheet.GetRow((uint)currentWorldId).Name.ExtractText();
             var targetWorldName  = worldSheet.GetRow((uint)targetWorldId).Name.ExtractText();

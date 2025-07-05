@@ -12,9 +12,10 @@ internal class DCTravelClient
 {
     private static DCTravelClient? instance { get; set; }
     
-    public HttpClient httpClient  { get; init; }
-    public List<Area> CachedAreas { get; set; }
-    public bool       IsValid     { get; private set; }
+    public static List<Area> CachedAreas { get; set; } = [];
+    public static bool       IsValid     { get; private set; }
+
+    private HttpClient httpClient { get; init; }
 
     private readonly string APIURL;
     
@@ -30,9 +31,9 @@ internal class DCTravelClient
         APIURL = $"http://127.0.0.1:{port}/dctravel/";
         
         httpClient = new HttpClient();
-        Task.Run(() =>
+        Task.Run(async () =>
         {
-            CachedAreas = QueryGroupListTravelSource().GetAwaiter().GetResult();
+            CachedAreas = await QueryGroupListTravelSource();
             IsValid     = true;
         });
     }

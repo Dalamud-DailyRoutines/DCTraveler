@@ -37,12 +37,14 @@ public static class TravelManager
             return;
         }
 
-        if (DCTravelClient.Instance() is not { IsValid: true } instance)
+        if (!DCTravelClient.IsValid)
         {
             MessageBoxWindow.Show(WindowManager.WindowSystem, title, "无法连接至超域旅行 API, 请检查 XIVLauncherCN 设置状态");
             Service.Log.Error("无法连接至 XIVLauncherCN 提供的超域旅行 API 服务");
             return;
         }
+        
+        var instance = DCTravelClient.Instance();
 
         Task.Run(async () =>
         {
@@ -51,7 +53,7 @@ public static class TravelManager
                 var worldSheet = Service.DataManager.GetExcelSheet<World>();
                 var currentWorld = worldSheet.GetRow((uint)currentWorldId);
                 var currentDcGroupName = currentWorld.DataCenter.Value.Name.ExtractText();
-                var currentGroup = instance.CachedAreas
+                var currentGroup = DCTravelClient.CachedAreas
                                            .First(x => x.AreaName == currentDcGroupName).GroupList
                                            .First(x => x.GroupCode == currentWorld.InternalName.ExtractText());
                 var orderID = string.Empty;
@@ -163,7 +165,10 @@ public static class TravelManager
                 break;
 
             if (status.Status is MigrationStatus.TeleportFailed or MigrationStatus.PreCheckFailed)
+            {
+                GameFunctions.CloseWaitAddon();
                 throw new Exception($"传送失败: {status.CheckMessage} {status.MigrationMessage}");
+            }
 
             if (status.Status == MigrationStatus.NeedConfirm)
             {
@@ -173,7 +178,10 @@ public static class TravelManager
                                                                 MessageBoxType.OkCancel);
                 await DCTravelClient.Instance().MigrationConfirmOrder(orderID, confirmResult == MessageBoxResult.Ok);
                 if (confirmResult != MessageBoxResult.Ok)
+                {
+                    GameFunctions.CloseWaitAddon();
                     return;
+                }
 
                 continue;
             }

@@ -1,5 +1,8 @@
 using System;
+using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
+using DCTravelerX.Helpers;
 using DCTravelerX.Infos;
 
 namespace DCTravelerX.Managers;
@@ -10,11 +13,16 @@ public static class ServerDataManager
     
     internal static void Init()
     {
-        Task.Run(async () => 
+        Task.Run(() => 
         {
             try
             {
-                SdoAreas = await SdoArea.Get();
+                var hostInfoString    = GameFunctions.GetGameArgument("XL.LobbyHosts");
+                var decodedBytes      = Convert.FromBase64String(hostInfoString);
+                var decodedJsonString = Encoding.UTF8.GetString(decodedBytes);
+                SdoAreas = JsonSerializer.Deserialize<SdoArea[]>(decodedJsonString);
+                
+                Service.Log.Information($"从游戏参数获取到 {SdoAreas.Length} 个大区主机信息");
             }
             catch (Exception ex)
             {

@@ -130,26 +130,33 @@ internal static class GameFunctions
         Service.Log.Information($"修改游戏大厅地址: LobbyHost - {lobbyHost}, SaveDataBankHost - {saveDataHost}, GmHost - {gmServerHost}");
     }
 
-    public static unsafe int GetLauncherDCTravelPort()
+    public static unsafe string GetGameArgument(string key)
     {
-        var          port       = 0;
-        var          gameWindow = GameWindow.Instance();
-        const string key        = "XL.DcTraveler=";
+        if (!key.EndsWith('='))
+            key += "=";
         
+        var gameWindow = GameWindow.Instance();
         for (var i = 0UL; i < gameWindow->ArgumentCount; i++)
         {
             var arg = gameWindow->GetArgument(i);
+            Service.Log.Debug($"{arg}");
             if (arg.StartsWith(key, StringComparison.OrdinalIgnoreCase))
-            {
-                _ = int.TryParse(arg[key.Length..], out port);
-                break;
-            }
+                return arg[key.Length..];
         }
-
-        if (port == 0)
-            throw new Exception("未能发现用于超域旅行的端口");
         
-        return port;
+        throw new Exception($"未能从游戏参数中获取 {key}");
+    }
+
+    public static int GetLauncherDCTravelPort()
+    {
+        var portString = GetGameArgument("XL.DcTraveler");
+        if (int.TryParse(portString, out var port))
+        {
+            Service.Log.Debug($"超域旅行用端口: {port}");
+            return port;
+        }
+        
+        throw new Exception("未能发现用于超域旅行的端口");
     }
     
     public static unsafe void LoginInGame()
