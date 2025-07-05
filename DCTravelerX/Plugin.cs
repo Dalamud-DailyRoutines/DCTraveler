@@ -12,7 +12,7 @@ namespace DCTravelerX;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    internal static SdoArea[]?      sdoAreas;
+    internal static SdoArea[]? sdoAreas;
 
     internal static string? LastErrorMessage { get; private set; }
 
@@ -47,22 +47,23 @@ public sealed class Plugin : IDalamudPlugin
     {
         var addon = (AtkUnitBase*)Service.GameGui.GetAddonByName("_TitleMenu");
         if (addon == null) return;
-        
-        var loginGameButton      = addon->GetComponentButtonById(4);
+
+        var loginGameButton = addon->GetComponentButtonById(4);
         var loginGameButtonEvent = loginGameButton->AtkResNode->AtkEventManager.Event;
-        Service.Framework.RunOnFrameworkThread(() => addon->ReceiveEvent(AtkEventType.ButtonClick, 1, loginGameButtonEvent));
+        Service.Framework.RunOnFrameworkThread(
+            () => addon->ReceiveEvent(AtkEventType.ButtonClick, 1, loginGameButtonEvent));
     }
 
     public static async Task SelectDCAndLogin(string name)
     {
         var newTicket = await DCTravelClient.Instance().RefreshGameSessionId();
-        
+
         ChangeToSdoArea(name);
         GameFunctions.ChangeDevTestSid(newTicket);
         GameFunctions.CloseWaitAddon();
         LoginInGame();
     }
 
-    public void Dispose() => 
+    public void Dispose() =>
         Service.Uninit();
 }

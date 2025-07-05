@@ -34,6 +34,7 @@ public class Service
         WindowManager.Init();
         TitleScreenButtonManager.Init();
         ContextMenuManager.Init();
+        IpcManager.Init();
     }
 
     public static void Uninit()
@@ -42,5 +43,6 @@ public class Service
         TitleScreenButtonManager.Uninit();
         WindowManager.Uninit();
         FontManager.Uninit();
+        IpcManager.Uninit();
     }
 }
