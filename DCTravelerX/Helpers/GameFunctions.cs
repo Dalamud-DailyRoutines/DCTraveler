@@ -62,6 +62,9 @@ internal static class GameFunctions
         addon->AtkValues[0].SetManagedString(message);
         addon->OnRefresh(addon->AtkValuesCount, addon->AtkValues);
     }
+    
+    public static unsafe void ResetTitleIdleTime() => 
+        AgentLobby.Instance()->IdleTime = 0;
 
     public static unsafe void CloseWaitAddon()
     {

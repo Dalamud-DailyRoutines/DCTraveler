@@ -35,15 +35,20 @@ public static class ContextMenuManager
         var homeWorldID           = currentCharacterEntry->HomeWorldId;
         var currentCharacterName  = currentCharacterEntry->NameString;
         
-        if (currentCharacterEntry->LoginFlags == CharaSelectCharacterEntryLoginFlags.DCTraveling || 
+        if (currentCharacterEntry->LoginFlags == CharaSelectCharacterEntryLoginFlags.Unk32 || 
             currentCharacterEntry->LoginFlags == CharaSelectCharacterEntryLoginFlags.DCTraveling)
         {
             args.AddMenuItem(new MenuItem
             {
-                Name        = "返回至原始大区",
-                OnClicked   = _ => TravelManager.Travel(homeWorldID, currentWorldID, selectedCharacterCID, true, currentCharacterName),
+                Name = "返回至原始大区",
+                OnClicked = _ => TravelManager.Travel(homeWorldID,
+                                                      currentWorldID,
+                                                      selectedCharacterCID,
+                                                      true,
+                                                      currentCharacterEntry->LoginFlags == CharaSelectCharacterEntryLoginFlags.Unk32,
+                                                      currentCharacterName),
                 Prefix      = SeIconChar.CrossWorld,
-                PrefixColor = 48,
+                PrefixColor = 34,
                 IsEnabled   = true
             });
         }
@@ -52,9 +57,9 @@ public static class ContextMenuManager
             args.AddMenuItem(new MenuItem
             {
                 Name        = "超域旅行",
-                OnClicked   = _ => TravelManager.Travel(0, currentWorldID, selectedCharacterCID, false, currentCharacterName),
+                OnClicked   = _ => TravelManager.Travel(0, currentWorldID, selectedCharacterCID, false, false, currentCharacterName),
                 Prefix      = SeIconChar.CrossWorld,
-                PrefixColor = 48,
+                PrefixColor = 34,
                 IsEnabled   = currentWorldID == homeWorldID
             });
         }

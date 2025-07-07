@@ -8,6 +8,7 @@ using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using DCTravelerX.Helpers;
 using DCTravelerX.Infos;
 using DCTravelerX.Windows;
+using FFXIVClientStructs.FFXIV.Client.UI;
 using Lumina.Excel.Sheets;
 
 namespace DCTravelerX.Managers;
@@ -27,7 +28,13 @@ public static class TravelManager
     };
 
     public static void Travel(
-        int targetWorldId, int currentWorldId, ulong contentId, bool isBack, string currentCharacterName, string? errorMessage = null)
+        int targetWorldID, 
+        int currentWorldID, 
+        ulong contentId, 
+        bool isBack, 
+        bool needSelectCurrentWorld, 
+        string currentCharacterName, 
+        string? errorMessage = null)
     {
         var title = isBack ? "返回至原始大区" : "超域旅行";
 
@@ -50,28 +57,52 @@ public static class TravelManager
         {
             try
             {
-                var worldSheet = Service.DataManager.GetExcelSheet<World>();
-                var currentWorld = worldSheet.GetRow((uint)currentWorldId);
-                var currentDcGroupName = currentWorld.DataCenter.Value.Name.ExtractText();
+                if (!Service.DataManager.GetExcelSheet<World>().TryGetRow((uint)currentWorldID, out var currentWorld))
+                    throw new Exception("无法获取当前服务器具体信息数据");
+
+                var currentDCName = currentWorld.DataCenter.Value.Name.ExtractText();
+                
                 var currentGroup = DCTravelClient.CachedAreas
-                                           .First(x => x.AreaName == currentDcGroupName).GroupList
-                                           .First(x => x.GroupCode == currentWorld.InternalName.ExtractText());
-                var orderID = string.Empty;
+                                           .FirstOrDefault(x => x.AreaName == currentDCName)?.GroupList
+                                           .FirstOrDefault(x => x.GroupCode == currentWorld.InternalName.ExtractText());
+                if (currentGroup == null)
+                    throw new Exception("无法获取当前区域具体信息数据");
+                
+                var orderID           = string.Empty;
                 var targetDCGroupName = string.Empty;
                 if (isBack)
                 {
-                    var targetWorld = worldSheet.GetRow((uint)targetWorldId);
-                    targetDCGroupName = targetWorld.DataCenter.Value.Name.ToString();
+                    if (!Service.DataManager.GetExcelSheet<World>().TryGetRow((uint)targetWorldID, out var targetWorld))
+                        throw new Exception("无法获取目标服务器具体信息数据");
+                    
+                    targetDCGroupName = targetWorld.DataCenter.Value.Name.ExtractText();
+                    
+                    if (needSelectCurrentWorld)
+                    {
+                        var selectWorld = await WindowManager.Get<WorldSelectorWindows>()
+                                                             .OpenTravelWindow(true,
+                                                                               false,
+                                                                               true,
+                                                                               DCTravelClient.CachedAreas,
+                                                                               currentDCName,
+                                                                               currentGroup.GroupCode,
+                                                                               targetDCGroupName,
+                                                                               currentWorld.Name.ExtractText());
+                        if (selectWorld == null) return;
+
+                        currentGroup = selectWorld.Source;
+                    }
+                    
+                    Service.Log.Information($"当前区服: {currentWorld.Name}@{currentDCName}, 返回目标区服: {targetWorld.Name}@{targetDCGroupName}");
 
                     var order = await GetTravelingOrder(contentId);
-                    Service.Log.Information($"找到返回原始大区订单: {order.OrderId}");
+                    Service.Log.Information($"返回原始大区订单号: {order.OrderId}");
 
                     await Service.Framework.RunOnFrameworkThread(GameFunctions.ReturnToTitle);
-                    await Service.Framework.RunOnFrameworkThread(
-                        () => GameFunctions.OpenWaitAddon($"正在返回原始大区: {targetDCGroupName}"));
-                    orderID = await instance.TravelBack(order.OrderId, currentGroup.GroupId, currentGroup.GroupCode,
-                                                        currentGroup.GroupName);
-                    Service.Log.Information($"获取到订单号为: {orderID}");
+                    await Service.Framework.RunOnFrameworkThread(() => GameFunctions.OpenWaitAddon($"正在返回原始大区: {targetDCGroupName}"));
+                    
+                    orderID = await instance.TravelBack(order.OrderId, currentGroup.GroupId, currentGroup.GroupCode, currentGroup.GroupName);
+                    Service.Log.Information($"订单: {orderID}");
                 }
                 else
                 {
@@ -79,7 +110,7 @@ public static class TravelManager
 
                     var selectedResult =
                         await WindowManager.Get<WorldSelectorWindows>()
-                                           .OpenTravelWindow(false, true, false, areas, currentDcGroupName,
+                                           .OpenTravelWindow(false, true, false, areas, currentDCName,
                                                              currentWorld.InternalName.ToString());
                     if (selectedResult == null)
                     {
@@ -114,13 +145,14 @@ public static class TravelManager
                 }
 
                 Service.AddonLifecycle.RegisterListener(AddonEvent.PreDraw, "_TitleLogo", OnAddonTitleLogo);
-                await WaitingForOrder(orderID, targetDCGroupName);
+                await ProcessingOrder(orderID, targetDCGroupName);
             }
             catch (Exception ex)
             {
                 await MessageBoxWindow.Show(WindowManager.WindowSystem, title, $"{title} 失败:\n{ex}", showWebsite: true);
                 Service.Log.Error(ex.ToString());
-            } finally
+            } 
+            finally
             {
                 GameFunctions.CloseWaitAddon();
                 Service.AddonLifecycle.UnregisterListener(OnAddonTitleLogo);
@@ -136,7 +168,7 @@ public static class TravelManager
         {
             var orders = await DCTravelClient.Instance().QueryMigrationOrders(currentPageNum);
             if (orders is not { Orders.Length: > 0 } ||
-                orders.Orders.First(x => x.ContentId == contentIdStr) is not { } order)
+                orders.Orders.FirstOrDefault(x => x.ContentId == contentIdStr) is not { } order)
             {
                 var maxPageNum = orders.TotalPageNum;
                 currentPageNum++;
@@ -151,24 +183,23 @@ public static class TravelManager
         }
     }
 
-    private static async Task WaitingForOrder(string orderID, string targetDCGroupName)
+    private static async Task ProcessingOrder(string orderID, string targetDCGroupName)
     {
         GameFunctions.CloseTitleLogoAddon();
+        
         while (true)
         {
             var status = await DCTravelClient.Instance().QueryOrderStatus(orderID);
             Service.Log.Information($"当前订单状态: {status.Status}");
 
+            GameFunctions.ResetTitleIdleTime();
             GameFunctions.UpdateWaitAddon(StatusText.GetValueOrDefault(status.Status, "未知状态"));
 
             if (status.Status == MigrationStatus.Completed)
                 break;
 
             if (status.Status is MigrationStatus.TeleportFailed or MigrationStatus.PreCheckFailed)
-            {
-                GameFunctions.CloseWaitAddon();
                 throw new Exception($"传送失败: {status.CheckMessage} {status.MigrationMessage}");
-            }
 
             if (status.Status == MigrationStatus.NeedConfirm)
             {
@@ -178,10 +209,7 @@ public static class TravelManager
                                                                 MessageBoxType.OkCancel);
                 await DCTravelClient.Instance().MigrationConfirmOrder(orderID, confirmResult == MessageBoxResult.Ok);
                 if (confirmResult != MessageBoxResult.Ok)
-                {
-                    GameFunctions.CloseWaitAddon();
-                    return;
-                }
+                    throw new Exception($"传送失败: 已自行取消");
 
                 continue;
             }
@@ -194,6 +222,7 @@ public static class TravelManager
         }
 
         await GameFunctions.SelectDCAndLogin(targetDCGroupName);
+        UIGlobals.PlaySoundEffect(67);
     }
 
     private static void OnAddonTitleLogo(AddonEvent type, AddonArgs args) =>

@@ -60,7 +60,7 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                     ImGui.TableNextColumn();
                     ImGui.SetNextItemWidth(-1f);
                     using (ImRaii.PushColor(ImGuiCol.FrameBg, windowBackground))
-                        ImGui.ListBox("##CurrentServer", ref currentWorldIndex, world[currentDCIndex], world[targetDCIndex].Length, 8);
+                        ImGui.ListBox("##CurrentServer", ref currentWorldIndex, world[currentDCIndex], world[currentDCIndex].Length, 8);
                 }
             }
         }
@@ -114,30 +114,37 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
     }
     
     public Task<SelectWorldResult> OpenTravelWindow(
-        bool    showSource,     bool    showTarget, bool isBackHome, List<Area> areasData, string? currentDcName = null, string? currentWorldCode = null,
-        string? targetDcName = null, string? targetWorldCode = null)
+        bool    showSource,     bool    showTarget, bool isBackHome, List<Area> areasData, string? currentDCName = null, string? currentWorldCode = null,
+        string? targetDCName = null, string? targetWorldCode = null)
     {
         selectWorldTaskCompletionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
         
-        areas           = areasData;
-        showSourceWorld = showSource;
-        showTargetWorld = showTarget;
-        isBack          = isBackHome;
-        dc              = new string[areasData.Count];
+        areas             = areasData;
+        showSourceWorld   = showSource;
+        showTargetWorld   = showTarget;
+        isBack            = isBackHome;
+        dc                = new string[areasData.Count];
+        currentDCIndex    = 0;
+        currentWorldIndex = 0;
+        targetDCIndex     = 0;
+        targetWorldIndex  = 0;
         
         for (var i = 0; i < areasData.Count; i++)
         {
             dc[i] = areasData[i].AreaName;
             world.Add(new string[areasData[i].GroupList.Count]);
-            if (currentDcName == areasData[i].AreaName)
+            
+            if (currentDCName == areasData[i].AreaName)
                 currentDCIndex = i;
-            else if (targetDcName == areasData[i].AreaName)
+            else if (targetDCName == areasData[i].AreaName)
                 targetDCIndex = i;
+            
             for (var j = 0; j < areasData[i].GroupList.Count; j++)
             {
-                if (currentDcName == areasData[i].AreaName && areasData[i].GroupList[j].GroupCode == currentWorldCode)
+                world[i][j] = areas[i].GroupList[j].GroupName;
+                if (currentDCName == areasData[i].AreaName && areasData[i].GroupList[j].GroupCode == currentWorldCode)
                     currentWorldIndex = j;
-                else if (targetDcName == areasData[i].AreaName && areasData[i].GroupList[j].GroupCode == targetWorldCode)
+                else if (targetDCName == areasData[i].AreaName && areasData[i].GroupList[j].GroupCode == targetWorldCode)
                     targetWorldIndex = j;
                 world[i][j] = areasData[i].GroupList[j].GroupName;
             }
