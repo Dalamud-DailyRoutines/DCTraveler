@@ -12,14 +12,14 @@ public static class IPCManager
 {
     internal static void Init()
     {
-        Service.PI.GetIpcProvider<int, int, ulong, bool, string, Task<string>>("DCTravelerX.Travel").RegisterFunc(Travel);
+        Service.PI.GetIpcProvider<int, int, ulong, bool, string, Task<Exception?>>("DCTravelerX.Travel").RegisterFunc(Travel);
         Service.PI.GetIpcProvider<string, Task<bool>>("DCTravelerX.SelectDCAndLogin").RegisterFunc(SelectDCAndLogin);
         Service.PI.GetIpcProvider<string, Task<bool>>("DCTravelerX.GetOrderStatus").RegisterFunc(GetOrderStatus);
     }
 
     internal static void Uninit()
     {
-        Service.PI.GetIpcProvider<int, int, ulong, bool, string, object>("DCTravelerX.Travel").UnregisterFunc();
+        Service.PI.GetIpcProvider<int, int, ulong, bool, string, Task<Exception?>>("DCTravelerX.Travel").UnregisterFunc();
         Service.PI.GetIpcProvider<string, Task<bool>>("DCTravelerX.SelectDCAndLogin").UnregisterFunc();
         Service.PI.GetIpcProvider<string, Task<bool>>("DCTravelerX.GetOrderStatus").UnregisterFunc();
     }
@@ -37,61 +37,22 @@ public static class IPCManager
     }
 
     // 传送获取一个订单号
-    private static async Task<string> Travel(int currentWorldId, int targetWorldId, ulong contentId, bool isBack, string currentCharacterName)
+    private static async Task<Exception?> Travel(int currentWorldId, int targetWorldId, ulong contentId, bool isBack, string currentCharacterName)
     {
-        var orderID = string.Empty;
         try
         {
-
-            if (!DCTravelClient.IsValid)
-            {
-                Service.Log.Error("无法连接至 XIVLauncherCN 提供的超域旅行 API 服务");
-                return orderID;
-            }
-
-            var instance = DCTravelClient.Instance();
-            var worldSheet       = Service.DataManager.GetExcelSheet<World>();
-            var currentWorldName = worldSheet.GetRow((uint)currentWorldId).Name.ExtractText();
-            var targetWorldName  = worldSheet.GetRow((uint)targetWorldId).Name.ExtractText();
-            var areas            = await instance.QueryGroupListTravelTarget(7, 5); //获取全部大区信息
-            var isGetSourceGroup = TryGetGroup(areas, currentWorldName, out var Source);
-
-            if (isBack && isGetSourceGroup)
-            {
-                var order = await TravelManager.GetTravelingOrder(contentId);
-                orderID = await instance.TravelBack(order.OrderId, Source.GroupId, Source.GroupCode,
-                                                    Source.GroupName);
-                return orderID;
-            }
-
-            var isGetTargetGroup = TryGetGroup(areas, targetWorldName, out var Target);
-            if (isGetSourceGroup && isGetTargetGroup)
-            {
-                var chara    = new Character { ContentId = contentId.ToString(), Name = currentCharacterName };
-                await instance.QueryTravelQueueTime(Target.AreaId, Target.GroupId);
-                orderID = await instance.TravelOrder(Target, Source, chara);
-            }
-
-            return orderID;
+            await TravelManager.ExecuteTravelFlow(targetWorldId, currentWorldId, contentId, isBack, false, currentCharacterName, true);
         }
         catch (Exception e)
         {
             Service.Log.Error(e.Message);
-            return orderID;
+            return e;
         }
+
+        return null;
     }
 
-
-    private static bool TryGetGroup(List<Area> areas, string worldName, out Group t)
-    {
-        var matchedGroup = areas.SelectMany(area => area.GroupList)
-                                .FirstOrDefault(group => group.GroupName == worldName);
-
-        t = matchedGroup ?? new Group();
-        return matchedGroup != null;
-    }
-
-    // 获取订单状态的
+    // 获取订单状态
     private static async Task<bool> GetOrderStatus(string orderID)
     {
         while (true)
