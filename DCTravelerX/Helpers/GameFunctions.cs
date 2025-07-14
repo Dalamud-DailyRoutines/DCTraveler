@@ -15,16 +15,15 @@ namespace DCTravelerX.Helpers;
 
 internal static class GameFunctions
 {
-    private unsafe delegate void ReturnToTitleDelegate(AgentLobby* agentLobby);
+    private unsafe delegate void                  ReturnToTitleDelegate(AgentLobby* agentLobby);
+    private static readonly ReturnToTitleDelegate ReturnToTitlePtr;
 
-    private unsafe delegate void ReleaseLobbyContextDelegate(NetworkModule* agentLobby);
-
-    private static readonly ReturnToTitleDelegate       ReturnToTitlePtr;
+    private unsafe delegate void                        ReleaseLobbyContextDelegate(NetworkModule* agentLobby);
     private static readonly ReleaseLobbyContextDelegate ReleaseLobbyContextPtr;
 
     static GameFunctions()
     {
-        var returnToTitleAddr = Service.SigScanner.ScanText("E8 ?? ?? ?? ?? C6 87 ?? ?? ?? ?? ?? 33 C0 ");
+        var returnToTitleAddr = Service.SigScanner.ScanText("E8 ?? ?? ?? ?? C6 87 ?? ?? ?? ?? ?? 33 C0");
         ReturnToTitlePtr = Marshal.GetDelegateForFunctionPointer<ReturnToTitleDelegate>(returnToTitleAddr);
 
         var releaseLobbyContextAddr = Service.SigScanner.ScanText("E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? 48 8B 85 ?? ?? ?? ?? 48 85 C0");

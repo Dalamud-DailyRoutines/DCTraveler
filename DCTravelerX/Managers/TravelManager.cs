@@ -16,8 +16,8 @@ namespace DCTravelerX.Managers;
 public static class TravelManager
 {
     private static readonly SemaphoreSlim TravelSemaphore = new(1, 1);
-    private static DateTime lastTravelTime = DateTime.MinValue;
-    private const int CooldownSeconds = 30;
+    private static          DateTime      lastTravelTime  = DateTime.MinValue;
+    private const           int           CooldownSeconds = 30;
     
     private static readonly Dictionary<MigrationStatus, string> StatusText = new()
     {
@@ -64,7 +64,7 @@ public static class TravelManager
             if (timeSinceLast < TimeSpan.FromSeconds(CooldownSeconds))
             {
                 var delay = TimeSpan.FromSeconds(CooldownSeconds) - timeSinceLast;
-                Service.Log.Info($"Throttling travel request. Waiting for {delay.TotalSeconds} seconds.");
+                Service.Log.Info($"传送请求过于频繁, 等待 {delay.TotalSeconds} 秒");
 
                 await Service.Framework.RunOnFrameworkThread(() => GameFunctions.OpenWaitAddon(string.Empty));
                 
@@ -143,7 +143,8 @@ public static class TravelManager
                     var order = await GetTravelingOrder(contentId);
                     Service.Log.Information($"返回原始大区订单号: {order.OrderId}");
 
-                    await Service.Framework.RunOnFrameworkThread(GameFunctions.ReturnToTitle);
+                    if (Service.GameGui.GetAddonByName("_CharaSelectListMenu") != nint.Zero)
+                        await Service.Framework.RunOnFrameworkThread(GameFunctions.ReturnToTitle);
                     await Service.Framework.RunOnFrameworkThread(() =>
                         GameFunctions.OpenWaitAddon($"正在返回原始大区: {targetDCGroupName}"));
 
