@@ -32,7 +32,7 @@ public static class IPCManager
         var newTicket = await DCTravelClient.Instance().RefreshGameSessionId();
 
         GameFunctions.ChangeToSdoArea(name);
-        GameFunctions.ChangeDevTestSid(newTicket);
+        GameFunctions.ChangeDEVTestSID(newTicket);
         return true;
     }
 

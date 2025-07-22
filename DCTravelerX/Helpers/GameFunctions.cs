@@ -47,16 +47,12 @@ internal static class GameFunctions
         values[0].SetManagedString($"{message}");
         values[1].SetUInt(0);
         instance->OpenAddon((uint)row, 2, values, null, 0, 0, 0);
-
-        CloseTitleLogoAddon();
     }
     
     public static unsafe void UpdateWaitAddon(string message)
     {
         var addon = (AtkUnitBase*)Service.GameGui.GetAddonByName("LobbyDKT");
         if (addon == null) return;
-
-        CloseTitleLogoAddon();
         
         addon->AtkValues[0].SetManagedString(message);
         addon->OnRefresh(addon->AtkValuesCount, addon->AtkValues);
@@ -73,12 +69,20 @@ internal static class GameFunctions
         addon->Close(true);
     }
 
-    public static unsafe void CloseTitleLogoAddon()
+    public static unsafe void ToggleTitleLogo(bool isVisible)
     {
         var logoAddon = (AtkUnitBase*)Service.GameGui.GetAddonByName("_TitleLogo");
         if (logoAddon == null) return;
         
-        logoAddon->IsVisible = false;
+        logoAddon->IsVisible = isVisible;
+    }
+    
+    public static unsafe void ToggleTitleMenu(bool isVisible)
+    {
+        var addon = (AtkUnitBase*)Service.GameGui.GetAddonByName("_TitleMenu");
+        if (addon == null) return;
+
+        addon->IsVisible = isVisible;
     }
 
     public static unsafe void RefreshGameServer()
@@ -94,7 +98,7 @@ internal static class GameFunctions
         Service.Log.Information("刷新大厅信息");
     }
 
-    public static unsafe void ChangeDevTestSid(string sid)
+    public static unsafe void ChangeDEVTestSID(string sid)
     {
         var agentLobby = AgentLobby.Instance();
         agentLobby->UnkUtf8Strings[0].SetString(sid);
@@ -188,7 +192,7 @@ internal static class GameFunctions
         var newTicket = await DCTravelClient.Instance().RefreshGameSessionId();
 
         ChangeToSdoArea(name);
-        ChangeDevTestSid(newTicket);
+        ChangeDEVTestSID(newTicket);
         CloseWaitAddon();
         LoginInGame();
     }

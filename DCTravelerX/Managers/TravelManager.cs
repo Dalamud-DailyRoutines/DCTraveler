@@ -18,17 +18,17 @@ public static class TravelManager
     private static readonly SemaphoreSlim TravelSemaphore = new(1, 1);
     private static          DateTime      lastTravelTime  = DateTime.MinValue;
     private const           int           CooldownSeconds = 30;
-    
+
     private static readonly Dictionary<MigrationStatus, string> StatusText = new()
     {
         [MigrationStatus.TeleportFailed] = "超域旅行传送失败",
         [MigrationStatus.PreCheckFailed] = "超域旅行预检查失败",
-        [MigrationStatus.InPrepare0] = "检查目标大区角色信息中...",
-        [MigrationStatus.InPrepare1] = "检查目标大区角色信息中...",
-        [MigrationStatus.NeedConfirm] = "需要确认传送",
-        [MigrationStatus.Processing3] = "超域旅行排队中...",
-        [MigrationStatus.Processing4] = "超域旅行排队中...",
-        [MigrationStatus.Completed] = "超域旅行完成"
+        [MigrationStatus.InPrepare0]     = "检查目标大区角色信息中...",
+        [MigrationStatus.InPrepare1]     = "检查目标大区角色信息中...",
+        [MigrationStatus.NeedConfirm]    = "需要确认传送",
+        [MigrationStatus.Processing3]    = "超域旅行排队中...",
+        [MigrationStatus.Processing4]    = "超域旅行排队中...",
+        [MigrationStatus.Completed]      = "超域旅行完成"
     };
 
     public static void Travel(
@@ -59,6 +59,7 @@ public static class TravelManager
         try
         {
             Service.AddonLifecycle.RegisterListener(AddonEvent.PreDraw, "_TitleLogo", OnAddonTitleLogo);
+            Service.AddonLifecycle.RegisterListener(AddonEvent.PreDraw, "_TitleMenu", OnAddonTitleMenu);
             
             var timeSinceLast = DateTime.UtcNow - lastTravelTime;
             if (timeSinceLast < TimeSpan.FromSeconds(CooldownSeconds))
@@ -137,8 +138,7 @@ public static class TravelManager
                         currentGroup = selectWorld.Source;
                     }
 
-                    Service.Log.Information(
-                        $"当前区服: {currentWorld.Name}@{currentDCName}, 返回目标区服: {targetWorld.Name}@{targetDCGroupName}");
+                    Service.Log.Information($"当前区服: {currentWorld.Name}@{currentDCName}, 返回目标区服: {targetWorld.Name}@{targetDCGroupName}");
 
                     var order = await GetTravelingOrder(contentId);
                     Service.Log.Information($"返回原始大区订单号: {order.OrderId}");
@@ -220,7 +220,12 @@ public static class TravelManager
             finally
             {
                 GameFunctions.CloseWaitAddon();
+                
                 Service.AddonLifecycle.UnregisterListener(OnAddonTitleLogo);
+                Service.AddonLifecycle.UnregisterListener(OnAddonTitleMenu);
+                
+                GameFunctions.ToggleTitleMenu(true);
+                GameFunctions.ToggleTitleLogo(true);
             }
         }
         finally
@@ -254,8 +259,6 @@ public static class TravelManager
 
     private static async Task ProcessingOrder(string orderID, string targetDCGroupName, bool isIpcCall)
     {
-        GameFunctions.CloseTitleLogoAddon();
-        
         while (true)
         {
             var status = await DCTravelClient.Instance().QueryOrderStatus(orderID);
@@ -283,7 +286,7 @@ public static class TravelManager
 
                 await DCTravelClient.Instance().MigrationConfirmOrder(orderID, confirmResult == MessageBoxResult.Ok);
                 if (confirmResult != MessageBoxResult.Ok)
-                    throw new Exception($"传送失败: 已自行取消");
+                    throw new Exception("传送失败: 已自行取消");
 
                 continue;
             }
@@ -300,8 +303,11 @@ public static class TravelManager
     }
 
     private static void OnAddonTitleLogo(AddonEvent type, AddonArgs args) =>
-        GameFunctions.CloseTitleLogoAddon();
+        GameFunctions.ToggleTitleLogo(false);
     
+    private static void OnAddonTitleMenu(AddonEvent type, AddonArgs args) => 
+        GameFunctions.ToggleTitleMenu(false);
+
     internal static async Task<string> CreateTravelOrder(int currentWorldId, int targetWorldId, ulong contentId, bool isBack, string currentCharacterName)
     {
         var orderID = string.Empty;
