@@ -95,4 +95,6 @@ internal class DCTravelClient
 
     public async Task MigrationConfirmOrder(string orderId, bool confirmed) => 
         await RequestApi<string>([orderId, confirmed]);
+
+    public async Task SetSdoArea(string name) => await RequestApi<string>([name]);
 }

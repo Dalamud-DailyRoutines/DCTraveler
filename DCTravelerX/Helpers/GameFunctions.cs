@@ -183,6 +183,7 @@ internal static class GameFunctions
             Service.Log.Error($"未找到大区: {groupName}");
             return;
         }
+        _ = DCTravelClient.Instance().SetSdoArea(groupName);
         ChangeGameServer(targetArea.AreaLobby, targetArea.AreaConfigUpload, targetArea.AreaGm);
         RefreshGameServer();
     }
