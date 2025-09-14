@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using Dalamud.Interface.Windowing;
 using DCTravelerX.Infos;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 
 namespace DCTravelerX.Windows;
 

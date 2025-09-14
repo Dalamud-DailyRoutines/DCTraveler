@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Dalamud.Utility;
 using DCTravelerX.Infos;
 using DCTravelerX.Managers;
 using FFXIVClientStructs.FFXIV.Application.Network;
@@ -51,7 +52,7 @@ internal static class GameFunctions
     
     public static unsafe void UpdateWaitAddon(string message)
     {
-        var addon = (AtkUnitBase*)Service.GameGui.GetAddonByName("LobbyDKT");
+        var addon = (AtkUnitBase*)Service.GameGui.GetAddonByName("LobbyDKT").Address;
         if (addon == null) return;
         
         addon->AtkValues[0].SetManagedString(message);
@@ -63,7 +64,7 @@ internal static class GameFunctions
 
     public static unsafe void CloseWaitAddon()
     {
-        var addon = (AtkUnitBase*)Service.GameGui.GetAddonByName("LobbyDKT");
+        var addon = (AtkUnitBase*)Service.GameGui.GetAddonByName("LobbyDKT").Address;
         if (addon == null) return;
 
         addon->Close(true);
@@ -71,7 +72,7 @@ internal static class GameFunctions
 
     public static unsafe void ToggleTitleLogo(bool isVisible)
     {
-        var logoAddon = (AtkUnitBase*)Service.GameGui.GetAddonByName("_TitleLogo");
+        var logoAddon = (AtkUnitBase*)Service.GameGui.GetAddonByName("_TitleLogo").Address;
         if (logoAddon == null) return;
         
         logoAddon->IsVisible = isVisible;
@@ -79,7 +80,7 @@ internal static class GameFunctions
     
     public static unsafe void ToggleTitleMenu(bool isVisible)
     {
-        var addon = (AtkUnitBase*)Service.GameGui.GetAddonByName("_TitleMenu");
+        var addon = (AtkUnitBase*)Service.GameGui.GetAddonByName("_TitleMenu").Address;
         if (addon == null) return;
 
         addon->IsVisible = isVisible;
@@ -142,9 +143,9 @@ internal static class GameFunctions
             key += "=";
         
         var gameWindow = GameWindow.Instance();
-        for (var i = 0UL; i < gameWindow->ArgumentCount; i++)
+        for (var i = 0; i < gameWindow->ArgumentCount; i++)
         {
-            var arg = gameWindow->GetArgument(i);
+            var arg = gameWindow->ArgumentsSpan[i].ExtractText();
             if (arg.StartsWith(key, StringComparison.OrdinalIgnoreCase))
                 return arg[key.Length..];
         }
@@ -166,7 +167,7 @@ internal static class GameFunctions
     
     public static unsafe void LoginInGame()
     {
-        var addon = (AtkUnitBase*)Service.GameGui.GetAddonByName("_TitleMenu");
+        var addon = (AtkUnitBase*)Service.GameGui.GetAddonByName("_TitleMenu").Address;
         if (addon == null) return;
 
         var loginGameButton      = addon->GetComponentButtonById(4);

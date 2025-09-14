@@ -7,7 +7,7 @@ using Dalamud.Utility.Numerics;
 using DCTravelerX.Helpers;
 using DCTravelerX.Infos;
 using DCTravelerX.Managers;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 
 namespace DCTravelerX.Windows;
 

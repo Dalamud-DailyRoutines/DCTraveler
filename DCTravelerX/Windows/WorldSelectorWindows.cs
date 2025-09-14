@@ -6,7 +6,7 @@ using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using DCTravelerX.Helpers;
 using DCTravelerX.Infos;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 
 namespace DCTravelerX.Windows;
 
@@ -55,12 +55,12 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                     ImGui.TableNextColumn();
                     ImGui.SetNextItemWidth(-1f);
                     using (ImRaii.PushColor(ImGuiCol.FrameBg, windowBackground))
-                        ImGui.ListBox("##CurrentDc", ref currentDCIndex, dc, dc.Length, 8);
+                        ImGui.ListBox("##CurrentDc", ref currentDCIndex, dc);
                     
                     ImGui.TableNextColumn();
                     ImGui.SetNextItemWidth(-1f);
                     using (ImRaii.PushColor(ImGuiCol.FrameBg, windowBackground))
-                        ImGui.ListBox("##CurrentServer", ref currentWorldIndex, world[currentDCIndex], world[currentDCIndex].Length, 8);
+                        ImGui.ListBox("##CurrentServer", ref currentWorldIndex, world[currentDCIndex]);
                 }
             }
         }
@@ -81,12 +81,12 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                     ImGui.TableNextColumn();
                     ImGui.SetNextItemWidth(-1f);
                     using (ImRaii.PushColor(ImGuiCol.FrameBg, windowBackground))
-                        ImGui.ListBox("##TargetDC", ref targetDCIndex, dc, dc.Length, 8);
+                        ImGui.ListBox("##TargetDC", ref targetDCIndex, dc);
                     
                     ImGui.TableNextColumn();
                     ImGui.SetNextItemWidth(-1f);
                     using (ImRaii.PushColor(ImGuiCol.FrameBg, windowBackground))
-                        ImGui.ListBox("##TargetServer", ref targetWorldIndex, world[targetDCIndex], world[targetDCIndex].Length, 8);
+                        ImGui.ListBox("##TargetServer", ref targetWorldIndex, world[targetDCIndex]);
                 }
             }
         }
