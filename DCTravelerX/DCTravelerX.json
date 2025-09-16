@@ -8,7 +8,6 @@
   "RepoUrl": "https://github.com/Dalamud-DailyRoutines/DCTraveler",
   "IconUrl": "https://raw.githubusercontent.com/AtmoOmen/StaticAssets/main/DCTravelerX/icon.png",
   "LoadPriority": 0,
-  "DalamudApiLevel": 12,
   "Tags": [
     "跨大区",
     "数据中心"
