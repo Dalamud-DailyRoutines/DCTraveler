@@ -3,7 +3,7 @@
 <Project Sdk="Dalamud.CN.NET.Sdk/13.1.0">
     
     <PropertyGroup>
-        <Version>0.1.3.0</Version>
+        <Version>0.1.4.0</Version>
         <Description>FF14 国服游戏内跨大区插件</Description>
         <Authors>Loskh</Authors>
         <PackageProjectUrl>https://github.com/Dalamud-DailyRoutines/DCTraveler</PackageProjectUrl>

@@ -55,7 +55,8 @@ internal class DCTravelClient
         {
             if (IsDisposed) return;
 
-            await QueryAllTravelTime();
+            if (TravelManager.TravelSemaphore.CurrentCount > 0)
+                await QueryAllTravelTime();
             await Task.Delay(600_000);
         }
     }

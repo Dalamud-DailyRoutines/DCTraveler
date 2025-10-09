@@ -15,9 +15,12 @@ namespace DCTravelerX.Managers;
 
 public static class TravelManager
 {
-    private static readonly SemaphoreSlim TravelSemaphore = new(1, 1);
-    private static          DateTime      lastTravelTime  = DateTime.MinValue;
-    private const           int           CooldownSeconds = 30;
+    private const int CooldownSeconds = 30;
+    
+    internal static readonly SemaphoreSlim TravelSemaphore = new(1, 1);
+    private static           DateTime      lastTravelTime  = DateTime.MinValue;
+
+    private static bool IsOnTravelling;
 
     private static readonly Dictionary<MigrationStatus, string> StatusText = new()
     {
@@ -55,9 +58,11 @@ public static class TravelManager
         string? errorMessage = null)
     {
         await TravelSemaphore.WaitAsync();
-
+        
         try
         {
+            IsOnTravelling = true;
+            
             Service.AddonLifecycle.RegisterListener(AddonEvent.PreDraw, "_TitleLogo", OnAddonTitleLogo);
             Service.AddonLifecycle.RegisterListener(AddonEvent.PreDraw, "_TitleMenu", OnAddonTitleMenu);
 
