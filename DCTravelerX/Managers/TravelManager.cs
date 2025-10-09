@@ -32,35 +32,35 @@ public static class TravelManager
     };
 
     public static void Travel(
-        int targetWorldID, 
-        int currentWorldID, 
-        ulong contentId, 
-        bool isBack, 
-        bool needSelectCurrentWorld, 
-        string currentCharacterName, 
+        int     targetWorldID,
+        int     currentWorldID,
+        ulong   contentID,
+        bool    isBack,
+        bool    needSelectCurrentWorld,
+        string  currentCharacterName,
         string? errorMessage = null)
     {
-        Task.Run(() => ExecuteTravelFlow(targetWorldID, currentWorldID, contentId, isBack, needSelectCurrentWorld,
+        Task.Run(() => ExecuteTravelFlow(targetWorldID, currentWorldID, contentID, isBack, needSelectCurrentWorld,
             currentCharacterName, false, errorMessage));
     }
 
     internal static async Task ExecuteTravelFlow(
-        int targetWorldID,
-        int currentWorldID,
-        ulong contentId,
-        bool isBack,
-        bool needSelectCurrentWorld,
-        string currentCharacterName,
-        bool isIpcCall,
+        int     targetWorldID,
+        int     currentWorldID,
+        ulong   contentId,
+        bool    isBack,
+        bool    needSelectCurrentWorld,
+        string  currentCharacterName,
+        bool    isIPCCall,
         string? errorMessage = null)
     {
         await TravelSemaphore.WaitAsync();
-        
+
         try
         {
             Service.AddonLifecycle.RegisterListener(AddonEvent.PreDraw, "_TitleLogo", OnAddonTitleLogo);
             Service.AddonLifecycle.RegisterListener(AddonEvent.PreDraw, "_TitleMenu", OnAddonTitleMenu);
-            
+
             var timeSinceLast = DateTime.UtcNow - lastTravelTime;
             if (timeSinceLast < TimeSpan.FromSeconds(CooldownSeconds))
             {
@@ -68,21 +68,21 @@ public static class TravelManager
                 Service.Log.Info($"传送请求过于频繁, 等待 {delay.TotalSeconds} 秒");
 
                 await Service.Framework.RunOnFrameworkThread(() => GameFunctions.OpenWaitAddon(string.Empty));
-                
+
                 var waitStart = DateTime.UtcNow;
                 while (DateTime.UtcNow - waitStart < delay)
                 {
                     var remaining = delay - (DateTime.UtcNow - waitStart);
-                    var message = $"传送请求过于频繁\n请等待 {remaining.TotalSeconds:F0} 秒后自动继续...";
+                    var message   = $"传送请求过于频繁\n请等待 {remaining.TotalSeconds:F0} 秒后自动继续...";
                     await Service.Framework.RunOnFrameworkThread(() => GameFunctions.UpdateWaitAddon(message));
                     await Task.Delay(500);
                 }
-                
+
                 await Service.Framework.RunOnFrameworkThread(GameFunctions.CloseWaitAddon);
             }
-            
+
             lastTravelTime = DateTime.UtcNow;
-            
+
             var title = isBack ? "返回至原始大区" : "超域旅行";
 
             if (errorMessage != null)
@@ -108,12 +108,12 @@ public static class TravelManager
                 var currentDCName = currentWorld.DataCenter.Value.Name.ExtractText();
 
                 var currentGroup = DCTravelClient.CachedAreas
-                    .FirstOrDefault(x => x.AreaName == currentDCName)?.GroupList
-                    .FirstOrDefault(x => x.GroupCode == currentWorld.InternalName.ExtractText());
+                                                 .FirstOrDefault(x => x.AreaName  == currentDCName)?.GroupList
+                                                 .FirstOrDefault(x => x.GroupCode == currentWorld.InternalName.ExtractText());
                 if (currentGroup == null)
                     throw new Exception("无法获取当前区域具体信息数据");
 
-                var orderID = string.Empty;
+                var orderID           = string.Empty;
                 var targetDCGroupName = string.Empty;
                 if (isBack)
                 {
@@ -122,17 +122,17 @@ public static class TravelManager
 
                     targetDCGroupName = targetWorld.DataCenter.Value.Name.ExtractText();
 
-                    if (needSelectCurrentWorld && !isIpcCall)
+                    if (needSelectCurrentWorld && !isIPCCall)
                     {
                         var selectWorld = await WindowManager.Get<WorldSelectorWindows>()
-                            .OpenTravelWindow(true,
-                                false,
-                                true,
-                                DCTravelClient.CachedAreas,
-                                currentDCName,
-                                currentGroup.GroupCode,
-                                targetDCGroupName,
-                                currentWorld.Name.ExtractText());
+                                                             .OpenTravelWindow(true,
+                                                                               false,
+                                                                               true,
+                                                                               DCTravelClient.CachedAreas,
+                                                                               currentDCName,
+                                                                               currentGroup.GroupCode,
+                                                                               targetDCGroupName,
+                                                                               currentWorld.Name.ExtractText());
                         if (selectWorld == null) return;
 
                         currentGroup = selectWorld.Source;
@@ -146,34 +146,35 @@ public static class TravelManager
                     if (Service.GameGui.GetAddonByName("_CharaSelectListMenu") != nint.Zero)
                         await Service.Framework.RunOnFrameworkThread(GameFunctions.ReturnToTitle);
                     await Service.Framework.RunOnFrameworkThread(() =>
-                        GameFunctions.OpenWaitAddon($"正在返回原始大区: {targetDCGroupName}"));
+                                                                     GameFunctions.OpenWaitAddon($"正在返回原始大区: {targetDCGroupName}"));
 
                     orderID = await instance.TravelBack(order.OrderId, currentGroup.GroupId, currentGroup.GroupCode,
-                        currentGroup.GroupName);
+                                                        currentGroup.GroupName);
                     Service.Log.Information($"订单: {orderID}");
                 }
                 else
                 {
-                    var areas = await instance.QueryGroupListTravelTarget(7, 5);
+                    var    areas       = await instance.QueryGroupListTravelTarget(7, 5);
                     Group? targetGroup = null;
 
-                    if (isIpcCall)
+                    if (isIPCCall)
                     {
                         if (Service.DataManager.GetExcelSheet<World>()
-                            .TryGetRow((uint)targetWorldID, out var targetWorldIpc))
+                                               .TryGetRow((uint)targetWorldID, out var targetWorldIPC))
                         {
-                            TryGetGroup(areas, targetWorldIpc.Name.ExtractText(), out var foundGroup);
+                            TryGetGroup(areas, targetWorldIPC.Name.ExtractText(), out var foundGroup);
                             targetGroup = foundGroup;
                         }
-                        if (targetGroup == null || targetGroup.GroupId == 0) 
+
+                        if (targetGroup == null || targetGroup.GroupId == 0)
                             throw new Exception($"[IPC] 无法找到目标服务器 {targetWorldID} 的信息。");
                     }
                     else
                     {
                         var selectedResult =
                             await WindowManager.Get<WorldSelectorWindows>()
-                                .OpenTravelWindow(false, true, false, areas, currentDCName,
-                                    currentWorld.InternalName.ToString());
+                                               .OpenTravelWindow(false, true, false, areas, currentDCName,
+                                                                 currentWorld.InternalName.ToString());
                         if (selectedResult == null)
                         {
                             Service.Log.Info("取消传送");
@@ -187,30 +188,27 @@ public static class TravelManager
                     Service.Log.Info($"超域旅行: {targetGroup.AreaName}@{targetGroup.GroupName}");
 
                     targetDCGroupName = targetGroup.AreaName;
-                    var waitTime =
-                        await instance.QueryTravelQueueTime(targetGroup.AreaId,
-                            targetGroup.GroupId);
+                    var waitTime = await instance.QueryTravelQueueTime(targetGroup.AreaId, targetGroup.GroupId);
                     Service.Log.Info($"预计花费时间: {waitTime} 分钟");
 
-                    if (!isIpcCall)
+                    if (!isIPCCall)
                     {
                         var costMsgBox = await MessageBoxWindow.Show(WindowManager.WindowSystem, title,
-                            $"预计等待时间: {waitTime} 分钟", MessageBoxType.YesNo);
+                                                                     $"预计等待时间: {waitTime} 分钟", MessageBoxType.YesNo);
                         if (costMsgBox != MessageBoxResult.Yes)
                         {
                             Service.Log.Info("取消传送");
                             return;
                         }
                     }
-                    
+
                     await Service.Framework.RunOnFrameworkThread(GameFunctions.ReturnToTitle);
-                    await Service.Framework.RunOnFrameworkThread(
-                        () => GameFunctions.OpenWaitAddon($"正在前往目标大区: {targetDCGroupName}\n预计等待时间: {waitTime} 分钟"));
+                    await Service.Framework.RunOnFrameworkThread(() => GameFunctions.OpenWaitAddon($"正在前往目标大区: {targetDCGroupName}\n预计等待时间: {waitTime} 分钟"));
                     orderID = await instance.TravelOrder(targetGroup, currentGroup, chara);
                     Service.Log.Information($"获取到订单号为: {orderID}");
                 }
 
-                await ProcessingOrder(orderID, targetDCGroupName, isIpcCall);
+                await ProcessingOrder(orderID, targetDCGroupName, isIPCCall);
             }
             catch (Exception ex)
             {
@@ -220,14 +218,14 @@ public static class TravelManager
             finally
             {
                 GameFunctions.CloseWaitAddon();
-                
+
                 Service.AddonLifecycle.UnregisterListener(OnAddonTitleLogo);
                 Service.AddonLifecycle.UnregisterListener(OnAddonTitleMenu);
-                
+
                 GameFunctions.ToggleTitleMenu(true);
                 GameFunctions.ToggleTitleLogo(true);
             }
-        }
+        } 
         finally
         {
             TravelSemaphore.Release();
@@ -308,7 +306,7 @@ public static class TravelManager
     private static void OnAddonTitleMenu(AddonEvent type, AddonArgs args) => 
         GameFunctions.ToggleTitleMenu(false);
 
-    internal static async Task<string> CreateTravelOrder(int currentWorldId, int targetWorldId, ulong contentId, bool isBack, string currentCharacterName)
+    internal static async Task<string> CreateTravelOrder(int currentWorldID, int targetWorldId, ulong contentId, bool isBack, string currentCharacterName)
     {
         var orderID = string.Empty;
         if (!DCTravelClient.IsValid)
@@ -317,11 +315,11 @@ public static class TravelManager
             return orderID;
         }
 
-        var instance = DCTravelClient.Instance();
-        var worldSheet = Service.DataManager.GetExcelSheet<World>();
-        var currentWorldName = worldSheet.GetRow((uint)currentWorldId).Name.ExtractText();
-        var targetWorldName = worldSheet.GetRow((uint)targetWorldId).Name.ExtractText();
-        var areas = await instance.QueryGroupListTravelTarget(7, 5); // 获取全部大区信息
+        var instance         = DCTravelClient.Instance();
+        var worldSheet       = Service.DataManager.GetExcelSheet<World>();
+        var currentWorldName = worldSheet.GetRow((uint)currentWorldID).Name.ExtractText();
+        var targetWorldName  = worldSheet.GetRow((uint)targetWorldId).Name.ExtractText();
+        var areas            = await instance.QueryGroupListTravelTarget(7, 5); // 获取全部大区信息
         var isGetSourceGroup = TryGetGroup(areas, currentWorldName, out var Source);
 
         if (isBack && isGetSourceGroup)
@@ -343,10 +341,10 @@ public static class TravelManager
         return orderID;
     }
     
-    private static bool TryGetGroup(IEnumerable<Area> areas, string worldName, out Group t)
+    internal static bool TryGetGroup(IEnumerable<Area> areas, string worldName, out Group t)
     {
         var matchedGroup = areas.SelectMany(area => area.GroupList)
-            .FirstOrDefault(group => group.GroupName == worldName);
+                                .FirstOrDefault(group => group.GroupName == worldName);
 
         t = matchedGroup ?? new Group();
         return matchedGroup != null;

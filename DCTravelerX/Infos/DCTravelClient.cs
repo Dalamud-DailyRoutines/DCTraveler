@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using DCTravelerX.Managers;
 
 namespace DCTravelerX.Infos;
 
@@ -14,6 +15,10 @@ internal class DCTravelClient
     
     public static List<Area> CachedAreas { get; set; } = [];
     public static bool       IsValid     { get; private set; }
+    
+    public bool IsDisposed { get; internal set; }
+    
+    public bool IsUpdatingAllQueryTime { get; private set; }
 
     private HttpClient httpClient { get; init; }
 
@@ -35,7 +40,45 @@ internal class DCTravelClient
         {
             CachedAreas = await QueryGroupListTravelSource();
             IsValid     = true;
+
+            _ = Task.Run(async () => await IntervalQueryAllTravelTime());
         });
+    }
+    
+    internal async Task IntervalQueryAllTravelTime()
+    {
+        while (true)
+        {
+            if (IsDisposed) return;
+
+            await QueryAllTravelTime();
+            await Task.Delay(600_000);
+        }
+    }
+    
+    internal async Task QueryAllTravelTime()
+    {
+        if (IsUpdatingAllQueryTime) return;
+        
+        try
+        {
+            IsUpdatingAllQueryTime = true;
+
+            var areas = await instance.QueryGroupListTravelTarget(7, 5);
+            foreach (var area in areas)
+            {
+                foreach (var group in area.GroupList)
+                {
+                    var waitTime = await QueryTravelQueueTime(group.AreaId, group.GroupId);
+                    group.QueueTime = waitTime;
+                    Service.Log.Debug($"获取 {group.GroupName} ({group.AreaName}) 当前等待时间: {waitTime}");
+                }
+            }
+        }
+        finally
+        {
+            IsUpdatingAllQueryTime = false;
+        }
     }
     
     public async Task<T> RequestApi<T>(object[] objs, [CallerMemberName] string? method = null)
@@ -69,8 +112,8 @@ internal class DCTravelClient
     public async Task<List<Area>> QueryGroupListTravelSource() => 
         await RequestApi<List<Area>>([]);
 
-    public async Task<List<Area>> QueryGroupListTravelTarget(int areaId, int groupId) => 
-        await RequestApi<List<Area>>([areaId, groupId]);
+    public async Task<List<Area>> QueryGroupListTravelTarget(int areaID, int groupID) => 
+        await RequestApi<List<Area>>([areaID, groupID]);
 
     public async Task<List<Character>> QueryRoleList(int areaId, int groupId) => 
         await RequestApi<List<Character>>([areaId, groupId]);

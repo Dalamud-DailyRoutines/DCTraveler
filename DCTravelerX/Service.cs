@@ -53,6 +53,7 @@ public class Service
     public static void Uninit()
     {
         IPCManager.Uninit();
+        DCTravelClient.Instance().IsDisposed = true; 
         ContextMenuManager.Uninit();
         TitleScreenButtonManager.Uninit();
         WindowManager.Uninit();

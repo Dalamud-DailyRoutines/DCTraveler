@@ -17,7 +17,7 @@ public class Group
     public string GroupName { get; set; }
 
     [JsonPropertyName("queueTime")]
-    public int? QueueTime { get; set; }
+    public int? QueueTime { get; set; } = -1;
 
     [JsonPropertyName("groupCode")]
     public string GroupCode { get; set; }
