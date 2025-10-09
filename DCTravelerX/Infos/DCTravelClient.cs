@@ -58,7 +58,7 @@ internal class DCTravelClient
     
     internal async Task QueryAllTravelTime()
     {
-        if (IsUpdatingAllQueryTime) return;
+        if (IsUpdatingAllQueryTime || !IsValid || CachedAreas is not { Count: > 0 }) return;
         
         try
         {
