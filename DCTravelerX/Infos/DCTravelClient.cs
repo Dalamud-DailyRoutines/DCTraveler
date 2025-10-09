@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using DCTravelerX.Managers;
 
@@ -23,6 +25,8 @@ internal class DCTravelClient
     private HttpClient httpClient { get; init; }
 
     private readonly string APIURL;
+
+    private static readonly SemaphoreSlim Lock = new(Environment.ProcessorCount, Environment.ProcessorCount);
     
     public static DCTravelClient Instance(int port = 0)
     {
@@ -64,20 +68,30 @@ internal class DCTravelClient
         {
             IsUpdatingAllQueryTime = true;
 
-            var areas = await instance.QueryGroupListTravelTarget(7, 5);
-            foreach (var area in areas)
-            {
-                foreach (var group in area.GroupList)
-                {
-                    var waitTime = await QueryTravelQueueTime(group.AreaId, group.GroupId);
-                    group.QueueTime = waitTime;
-                    Service.Log.Debug($"获取 {group.GroupName} ({group.AreaName}) 当前等待时间: {waitTime}");
-                }
-            }
+            var tasks = CachedAreas.SelectMany(x => x.GroupList).Select(GetWaitTime).ToList();
+            await Task.WhenAll(tasks);
         }
         finally
         {
             IsUpdatingAllQueryTime = false;
+        }
+
+        return;
+
+        async Task GetWaitTime(Group group)
+        {
+            await Lock.WaitAsync();
+            
+            try
+            {
+                var waitTime = await QueryTravelQueueTime(group.AreaId, group.GroupId);
+                group.QueueTime = waitTime;
+                Service.Log.Debug($"获取 {group.GroupName} ({group.AreaName}) 当前等待时间: {waitTime}");
+            }
+            finally
+            {
+                Lock.Release();
+            }
         }
     }
     

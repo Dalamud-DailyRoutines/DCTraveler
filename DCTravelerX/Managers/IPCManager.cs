@@ -95,11 +95,14 @@ public static class IPCManager
     private static int GetWaitTime(uint worldID)
     {
         if (WorldToGroup.TryGetValue(worldID, out var existedGroup))
-            return (int)existedGroup.QueueTime!;
-        
+            return existedGroup.QueueTime ?? -1;
+
         if (Service.DataManager.GetExcelSheet<World>().TryGetRow(worldID, out var targetWorldIPC) &&
             TravelManager.TryGetGroup(DCTravelClient.CachedAreas, targetWorldIPC.Name.ExtractText(), out var foundGroup))
-            return (int)foundGroup.QueueTime!;
+        {
+            WorldToGroup.Add(worldID, foundGroup);
+            return foundGroup.QueueTime ?? -1;
+        }
         
         return -1;
     }
