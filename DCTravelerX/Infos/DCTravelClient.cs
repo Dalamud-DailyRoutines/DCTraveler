@@ -133,8 +133,18 @@ internal class DCTravelClient
     public async Task<List<Character>> QueryRoleList(int areaId, int groupId) => 
         await RequestApi<List<Character>>([areaId, groupId]);
 
-    public async Task<int> QueryTravelQueueTime(int areaId, int groupId) => 
-        await RequestApi<int>([areaId, groupId]);
+    // 拂晓可能觉得没用所以删掉/回炉改造了？据反馈也不是很准。目前 25/10/11 在官网也抓不到这个请求了
+    public async Task<int> QueryTravelQueueTime(int areaID, int groupID)
+    {
+        try
+        {
+            return await RequestApi<int>([areaID, groupID]);
+        }
+        catch
+        {
+            return 0;
+        }
+    }
 
     public async Task<string> TravelOrder(Group targetGroup, Group sourceGroup, Character character) =>
         await RequestApi<string>([targetGroup, sourceGroup, character]);

@@ -62,6 +62,16 @@ public static class TravelManager
         try
         {
             IsOnTravelling = true;
+
+            var isQueryingBefore = false;
+            while (DCTravelClient.Instance().IsUpdatingAllQueryTime)
+            {
+                isQueryingBefore = true;
+                await Task.Delay(100);
+            }
+
+            if (isQueryingBefore)
+                await Task.Delay(2_000);
             
             Service.AddonLifecycle.RegisterListener(AddonEvent.PreDraw, "_TitleLogo", OnAddonTitleLogo);
             Service.AddonLifecycle.RegisterListener(AddonEvent.PreDraw, "_TitleMenu", OnAddonTitleMenu);
@@ -196,10 +206,12 @@ public static class TravelManager
                     var waitTime = await instance.QueryTravelQueueTime(targetGroup.AreaId, targetGroup.GroupId);
                     Service.Log.Info($"预计花费时间: {waitTime} 分钟");
 
+                    var waitTimeMessage = waitTime == 0 ? "即刻完成" : $"{waitTime} 分钟";
                     if (!isIPCCall)
                     {
+                        
                         var costMsgBox = await MessageBoxWindow.Show(WindowManager.WindowSystem, title,
-                                                                     $"预计等待时间: {waitTime} 分钟", MessageBoxType.YesNo);
+                                                                     $"超域传送预计需要等待: {waitTimeMessage}", MessageBoxType.YesNo);
                         if (costMsgBox != MessageBoxResult.Yes)
                         {
                             Service.Log.Info("取消传送");
@@ -208,7 +220,7 @@ public static class TravelManager
                     }
 
                     await Service.Framework.RunOnFrameworkThread(GameFunctions.ReturnToTitle);
-                    await Service.Framework.RunOnFrameworkThread(() => GameFunctions.OpenWaitAddon($"正在前往目标大区: {targetDCGroupName}\n预计等待时间: {waitTime} 分钟"));
+                    await Service.Framework.RunOnFrameworkThread(() => GameFunctions.OpenWaitAddon($"正在前往目标大区: {targetDCGroupName}\n预计需要等待: {waitTimeMessage}"));
                     orderID = await instance.TravelOrder(targetGroup, currentGroup, chara);
                     Service.Log.Information($"获取到订单号为: {orderID}");
                 }
