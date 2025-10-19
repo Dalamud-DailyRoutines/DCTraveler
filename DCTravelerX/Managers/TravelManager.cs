@@ -203,10 +203,15 @@ public static class TravelManager
                     Service.Log.Info($"超域旅行: {targetGroup.AreaName}@{targetGroup.GroupName}");
 
                     targetDCGroupName = targetGroup.AreaName;
-                    var waitTime = await instance.QueryTravelQueueTime(targetGroup.AreaId, targetGroup.GroupId);
+                    var waitTime = targetGroup.QueueTime ?? 0;
                     Service.Log.Info($"预计花费时间: {waitTime} 分钟");
 
-                    var waitTimeMessage = waitTime == 0 ? "即刻完成" : $"{waitTime} 分钟";
+                    var waitTimeMessage = waitTime switch
+                    {
+                        0    => "即刻完成",
+                        -999 => "繁忙",
+                        _    => $"{waitTime} 分钟"
+                    };
                     if (!isIPCCall)
                     {
                         

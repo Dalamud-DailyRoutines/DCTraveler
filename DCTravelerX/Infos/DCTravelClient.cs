@@ -138,7 +138,14 @@ internal class DCTravelClient
     {
         try
         {
-            return await RequestApi<int>([areaID, groupID]);
+            var result = await QueryGroupListTravelTarget(areaID, groupID);
+            if (result is not { Count: > 0 })
+                return 0;
+
+            if (result.SelectMany(x => x.GroupList).FirstOrDefault(x => x.GroupId == groupID) is not { } group)
+                return 0;
+            
+            return group.QueueTime ?? 0;
         }
         catch
         {
