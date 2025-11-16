@@ -13,10 +13,12 @@ namespace DCTravelerX.Windows;
 internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.AlwaysAutoResize), IDisposable
 {
     private TaskCompletionSource<SelectWorldResult>? selectWorldTaskCompletionSource;
-    
+
     private          bool           showSourceWorld = true;
     private          bool           showTargetWorld = true;
     private          bool           isBack;
+    private          bool           enableRetryOnFailure = true;
+    private          int            retryCount = 3;
     private          int            currentDCIndex;
     private          int            currentWorldIndex;
     private          string[]       dc    = [];
@@ -90,7 +92,27 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                 }
             }
         }
-        
+
+        ImGui.Separator();
+        ImGui.Checkbox("传送失败时自动重试", ref enableRetryOnFailure);
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("启用后，如果传送失败会在1分钟后自动重试");
+
+        if (enableRetryOnFailure)
+        {
+            ImGui.Indent();
+            ImGui.SetNextItemWidth(150f);
+            ImGui.InputInt("重试次数", ref retryCount);
+
+            // 限制输入范围在1-20之间
+            if (retryCount < 1) retryCount = 1;
+            if (retryCount > 20) retryCount = 20;
+
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("设置传送失败后的最大重试次数 (1-20次)");
+            ImGui.Unindent();
+        }
+
         var sameDC = currentDCIndex == targetDCIndex;
         using (ImRaii.Disabled(sameDC))
         {
@@ -100,12 +122,14 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                     new SelectWorldResult
                     {
                         Source = areas[currentDCIndex].GroupList[currentWorldIndex],
-                        Target = areas[targetDCIndex].GroupList[targetWorldIndex]
+                        Target = areas[targetDCIndex].GroupList[targetWorldIndex],
+                        EnableRetry = enableRetryOnFailure,
+                        RetryCount = enableRetryOnFailure ? retryCount : 0
                     });
                 IsOpen = false;
             }
         }
-        
+
         if (ImGuiOm.ButtonSelectable("取消"))
         {
             selectWorldTaskCompletionSource?.SetResult(null!);
