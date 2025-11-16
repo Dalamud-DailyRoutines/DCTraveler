@@ -236,12 +236,10 @@ public static class TravelManager
                     await Service.Framework.RunOnFrameworkThread(() => GameFunctions.OpenWaitAddon($"正在前往目标大区: {targetDCGroupName}\n预计需要等待: {waitTimeMessage}"));
                 }
 
-                // 重试逻辑 - 包装订单创建和处理
                 int retryCount = 0;
                 Exception? lastException = null;
                 var cancelWindow = WindowManager.Get<TravelCancelWindow>();
 
-                // 打开取消窗口（在传送过程中显示）
                 if (cancelWindow != null && !isIPCCall)
                 {
                     await Service.Framework.RunOnFrameworkThread(() =>
@@ -253,7 +251,6 @@ public static class TravelManager
 
                 while (retryCount <= maxRetries)
                 {
-                    // 检查用户是否点击了取消按钮
                     if (cancelWindow != null && cancelWindow.IsCancelled)
                     {
                         Service.Log.Info("用户取消了传送");
@@ -263,7 +260,6 @@ public static class TravelManager
 
                     try
                     {
-                        // 创建订单（如果是第一次尝试或重试）
                         if (string.IsNullOrEmpty(orderID) || retryCount > 0)
                         {
                             if (!isBack && targetGroup != null && sourceGroup != null && chara != null)
@@ -282,18 +278,15 @@ public static class TravelManager
                             }
                             else if (isBack)
                             {
-                                // 返回模式已经在前面创建了订单
                             }
                         }
 
-                        // 处理订单
                         await ProcessingOrder(orderID, targetDCGroupName, isIPCCall);
-                        lastException = null; // 成功，清除异常
-                        break; // 成功，退出重试循环
+                        lastException = null;
+                        break;
                     }
                     catch (Exception ex) when (enableRetry && !isIPCCall && retryCount < maxRetries)
                     {
-                        // 检查是否是可重试的错误
                         var isRetryableError = ex.Message.Contains("传送失败") ||
                                               ex.Message.Contains("繁忙") ||
                                               ex.Message.Contains("请您稍晚再次尝试") ||
@@ -302,21 +295,18 @@ public static class TravelManager
 
                         if (!isRetryableError)
                         {
-                            throw; // 不可重试的错误，直接抛出
+                            throw;
                         }
 
                         lastException = ex;
                         retryCount++;
                         Service.Log.Warning($"传送失败 (尝试 {retryCount}/{maxRetries}): {ex.Message}");
 
-                        // 清空订单ID，下次循环重新创建
                         orderID = string.Empty;
 
-                        // 显示重试信息并倒计时1分钟
                         const int retryDelayMinutes = 1;
                         var retryDelay = TimeSpan.FromMinutes(retryDelayMinutes);
 
-                        // 提取最核心的错误信息（只显示message部分）
                         var errorMsg = ExtractErrorMessage(ex);
                         await Service.Framework.RunOnFrameworkThread(() =>
                             GameFunctions.UpdateWaitAddon(
@@ -324,11 +314,9 @@ public static class TravelManager
                                 $"{retryDelayMinutes} 分钟后自动重试...\n\n" +
                                 $"失败原因: {errorMsg}"));
 
-                        // 倒计时等待
                         var waitStart = DateTime.UtcNow;
                         while (DateTime.UtcNow - waitStart < retryDelay)
                         {
-                            // 在倒计时期间检查取消
                             if (cancelWindow != null && cancelWindow.IsCancelled)
                             {
                                 Service.Log.Info("用户在重试等待期间取消了传送");
@@ -344,18 +332,14 @@ public static class TravelManager
                                     $"失败原因: {errorMsg}"));
                             await Task.Delay(1000);
                         }
-
-                        // 继续下一次重试（在循环开始时重新创建订单）
                     }
                 }
 
-                // 关闭取消窗口
                 if (cancelWindow != null)
                 {
                     await Service.Framework.RunOnFrameworkThread(() => cancelWindow.IsOpen = false);
                 }
 
-                // 如果所有重试都失败，抛出最后一次的异常
                 if (lastException != null)
                 {
                     throw lastException;
@@ -501,32 +485,23 @@ public static class TravelManager
         return matchedGroup != null;
     }
 
-    /// <summary>
-    /// 从异常中提取最核心的错误信息（只提取message部分）
-    /// </summary>
     private static string ExtractErrorMessage(Exception ex)
     {
-        // 尝试从异常消息中提取"message:"后面的内容
         var message = ex.Message;
 
-        // 查找 "message:" 关键字
         var messageIndex = message.IndexOf("message:", StringComparison.OrdinalIgnoreCase);
         if (messageIndex >= 0)
         {
-            // 提取message:后面的内容
             var extractedMsg = message.Substring(messageIndex + 8).Trim();
 
-            // 找到第一行结束位置（换行符或堆栈信息开始）
             var endIndex = extractedMsg.IndexOfAny(new[] { '\n', '\r' });
             if (endIndex > 0)
                 extractedMsg = extractedMsg.Substring(0, endIndex).Trim();
 
-            // 如果提取的消息不为空，使用它
             if (!string.IsNullOrWhiteSpace(extractedMsg))
                 message = extractedMsg;
         }
 
-        // 如果消息太长，截断
         if (message.Length > 150)
             message = message.Substring(0, 150) + "...";
 

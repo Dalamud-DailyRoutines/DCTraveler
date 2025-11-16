@@ -104,7 +104,6 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
             ImGui.SetNextItemWidth(150f);
             ImGui.InputInt("重试次数", ref retryCount);
 
-            // 限制输入范围在1-20之间
             if (retryCount < 1) retryCount = 1;
             if (retryCount > 20) retryCount = 20;
 

@@ -27,7 +27,6 @@ internal class TravelCancelWindow : Window, IDisposable
 
     public override void Draw()
     {
-        // 增大字体和间距（相当于增大20%）
         ImGui.Dummy(new(0, 10));
         ImGui.TextWrapped("正在等待传送或重试中...");
         ImGui.Dummy(new(0, 5));
@@ -37,7 +36,6 @@ internal class TravelCancelWindow : Window, IDisposable
         ImGui.Separator();
         ImGui.Dummy(new(0, 10));
 
-        // 按钮尺寸增大20%：150*1.2=180, 30*1.2=36
         if (ImGui.Button("取消传送", new(180, 36)))
         {
             IsCancelled = true;
@@ -57,6 +55,5 @@ internal class TravelCancelWindow : Window, IDisposable
 
     public void Dispose()
     {
-        // Cleanup if needed
     }
 }
