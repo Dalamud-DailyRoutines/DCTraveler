@@ -42,7 +42,7 @@ internal class DCTravelClient
         httpClient = new HttpClient();
         Task.Run(async () =>
         {
-            CachedAreas = await QueryGroupListTravelSource();
+            CachedAreas = await QueryGroupListTravelTarget(9, 5);
             IsValid     = true;
 
             _ = Task.Run(async () => await IntervalQueryAllTravelTime());
