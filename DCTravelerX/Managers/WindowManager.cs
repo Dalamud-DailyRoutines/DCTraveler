@@ -1,7 +1,5 @@
-using System;
 using System.Linq;
 using Dalamud.Interface.Windowing;
-using DCTravelerX.Managers;
 using DCTravelerX.Windows;
 
 namespace DCTravelerX.Managers;

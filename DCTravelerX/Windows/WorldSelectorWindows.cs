@@ -1,17 +1,20 @@
 using System;
 using System.Collections.Generic;
-using System.Numerics;
+using System.Linq;
 using System.Threading.Tasks;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using DCTravelerX.Helpers;
 using DCTravelerX.Infos;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility;
 
 namespace DCTravelerX.Windows;
 
 internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.AlwaysAutoResize), IDisposable
 {
+    internal List<string[]> Worlds { get; set; } = [];
+    
     private TaskCompletionSource<SelectWorldResult>? selectWorldTaskCompletionSource;
     
     private          bool           showSourceWorld = true;
@@ -20,7 +23,6 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
     private          int            currentDCIndex;
     private          int            currentWorldIndex;
     private          string[]       dc    = [];
-    private readonly List<string[]> world = [];
     private          int            targetDCIndex;
     private          int            targetWorldIndex;
     private          List<Area>     areas = [];
@@ -41,53 +43,49 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
         
         if (showSourceWorld)
         {
-            using (var table = ImRaii.Table("##TableCurrent", 2, ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersInnerV))
+            using var table = ImRaii.Table("##TableCurrent", 2, ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersInnerV);
+            if (table)
             {
-                if (table)
-                {
-                    ImGui.TableSetupColumn("当前大区",  ImGuiTableColumnFlags.WidthFixed, columnWidth);
-                    ImGui.TableSetupColumn("当前服务器", ImGuiTableColumnFlags.WidthFixed, columnWidth);
+                ImGui.TableSetupColumn("当前大区",  ImGuiTableColumnFlags.WidthFixed, columnWidth);
+                ImGui.TableSetupColumn("当前服务器", ImGuiTableColumnFlags.WidthFixed, columnWidth);
                     
-                    ImGui.TableHeadersRow();
+                ImGui.TableHeadersRow();
 
-                    ImGui.TableNextRow();
+                ImGui.TableNextRow();
                     
-                    ImGui.TableNextColumn();
-                    ImGui.SetNextItemWidth(-1f);
-                    using (ImRaii.PushColor(ImGuiCol.FrameBg, windowBackground))
-                        ImGui.ListBox("##CurrentDc", ref currentDCIndex, dc);
+                ImGui.TableNextColumn();
+                ImGui.SetNextItemWidth(-1f);
+                using (ImRaii.PushColor(ImGuiCol.FrameBg, windowBackground))
+                    ImGui.ListBox("##CurrentDc", ref currentDCIndex, dc, (int)(8 * ImGuiHelpers.GlobalScale));
                     
-                    ImGui.TableNextColumn();
-                    ImGui.SetNextItemWidth(-1f);
-                    using (ImRaii.PushColor(ImGuiCol.FrameBg, windowBackground))
-                        ImGui.ListBox("##CurrentServer", ref currentWorldIndex, world[currentDCIndex]);
-                }
+                ImGui.TableNextColumn();
+                ImGui.SetNextItemWidth(-1f);
+                using (ImRaii.PushColor(ImGuiCol.FrameBg, windowBackground))
+                    ImGui.ListBox("##CurrentServer", ref currentWorldIndex, Worlds[currentDCIndex], (int)(8 * ImGuiHelpers.GlobalScale));
             }
         }
 
         if (showTargetWorld)
         {
-            using (var table = ImRaii.Table("##TableCurrent", 2, ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersInnerV))
+            using var table = ImRaii.Table("##TableCurrent", 2, ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersInnerV);
+            if (table)
             {
-                if (table)
-                {
-                    ImGui.TableSetupColumn("目标大区",  ImGuiTableColumnFlags.WidthFixed, columnWidth);
-                    ImGui.TableSetupColumn("目标服务器", ImGuiTableColumnFlags.WidthFixed, columnWidth);
+                ImGui.TableSetupColumn("目标大区",  ImGuiTableColumnFlags.WidthFixed, columnWidth);
+                ImGui.TableSetupColumn("目标服务器", ImGuiTableColumnFlags.WidthFixed, columnWidth);
                     
-                    ImGui.TableHeadersRow();
+                ImGui.TableHeadersRow();
 
-                    ImGui.TableNextRow();
+                ImGui.TableNextRow();
                     
-                    ImGui.TableNextColumn();
-                    ImGui.SetNextItemWidth(-1f);
-                    using (ImRaii.PushColor(ImGuiCol.FrameBg, windowBackground))
-                        ImGui.ListBox("##TargetDC", ref targetDCIndex, dc);
+                ImGui.TableNextColumn();
+                ImGui.SetNextItemWidth(-1f);
+                using (ImRaii.PushColor(ImGuiCol.FrameBg, windowBackground))
+                    ImGui.ListBox("##TargetDC", ref targetDCIndex, dc, (int)(8 * ImGuiHelpers.GlobalScale));
                     
-                    ImGui.TableNextColumn();
-                    ImGui.SetNextItemWidth(-1f);
-                    using (ImRaii.PushColor(ImGuiCol.FrameBg, windowBackground))
-                        ImGui.ListBox("##TargetServer", ref targetWorldIndex, world[targetDCIndex]);
-                }
+                ImGui.TableNextColumn();
+                ImGui.SetNextItemWidth(-1f);
+                using (ImRaii.PushColor(ImGuiCol.FrameBg, windowBackground))
+                    ImGui.ListBox("##TargetServer", ref targetWorldIndex, Worlds[targetDCIndex], (int)(8 * ImGuiHelpers.GlobalScale));
             }
         }
         
@@ -112,13 +110,19 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
             IsOpen = false;
         }
     }
-    
+
     public Task<SelectWorldResult> OpenTravelWindow(
-        bool    showSource,     bool    showTarget, bool isBackHome, List<Area> areasData, string? currentDCName = null, string? currentWorldCode = null,
-        string? targetDCName = null, string? targetWorldCode = null)
+        bool       showSource,
+        bool       showTarget,
+        bool       isBackHome,
+        List<Area> areasData,
+        string?    currentDCName    = null,
+        string?    currentWorldCode = null,
+        string?    targetDCName     = null,
+        string?    targetWorldCode  = null)
     {
         selectWorldTaskCompletionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        
+
         areas             = areasData;
         showSourceWorld   = showSource;
         showTargetWorld   = showTarget;
@@ -128,25 +132,38 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
         currentWorldIndex = 0;
         targetDCIndex     = 0;
         targetWorldIndex  = 0;
-        
+
         for (var i = 0; i < areasData.Count; i++)
         {
             dc[i] = areasData[i].AreaName;
-            world.Add(new string[areasData[i].GroupList.Count]);
-            
+            Worlds.Add(new string[areasData[i].GroupList.Count]);
+
             if (currentDCName == areasData[i].AreaName)
                 currentDCIndex = i;
             else if (targetDCName == areasData[i].AreaName)
                 targetDCIndex = i;
-            
+
             for (var j = 0; j < areasData[i].GroupList.Count; j++)
             {
-                world[i][j] = areas[i].GroupList[j].GroupName;
+                Worlds[i][j] = areas[i].GroupList[j].GroupName;
                 if (currentDCName == areasData[i].AreaName && areasData[i].GroupList[j].GroupCode == currentWorldCode)
                     currentWorldIndex = j;
                 else if (targetDCName == areasData[i].AreaName && areasData[i].GroupList[j].GroupCode == targetWorldCode)
                     targetWorldIndex = j;
-                world[i][j] = areasData[i].GroupList[j].GroupName;
+
+                var worldName = areasData[i].GroupList[j].GroupName;
+                var queueTime = DCTravelClient.CachedAreas
+                                              .SelectMany(x => x.GroupList)
+                                              .FirstOrDefault(x => x.GroupName == worldName).QueueTime;
+                var waitTimeMessage = queueTime switch
+                {
+                    0    => "即刻完成",
+                    -1   => "禁止传送",
+                    -999 => "繁忙",
+                    _    => $"{queueTime} 分钟"
+                };
+
+                Worlds[i][j] = $"{worldName} (状态: {waitTimeMessage})";
             }
         }
 

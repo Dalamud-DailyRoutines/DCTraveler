@@ -57,7 +57,7 @@ internal class DCTravelClient
 
             if (TravelManager.TravelSemaphore.CurrentCount > 0)
                 await QueryAllTravelTime();
-            await Task.Delay(600_000);
+            await Task.Delay(60_000);
         }
     }
     
@@ -69,8 +69,7 @@ internal class DCTravelClient
         {
             IsUpdatingAllQueryTime = true;
 
-            var tasks = CachedAreas.SelectMany(x => x.GroupList).Select(GetWaitTime).ToList();
-            await Task.WhenAll(tasks);
+            CachedAreas = await QueryGroupListTravelTarget(9, 5);
         }
         finally
         {

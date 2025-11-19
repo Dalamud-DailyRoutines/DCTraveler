@@ -169,7 +169,7 @@ public static class TravelManager
                 }
                 else
                 {
-                    var    areas       = await instance.QueryGroupListTravelTarget(7, 5);
+                    var    areas       = await instance.QueryGroupListTravelTarget(9, 5);
                     Group? targetGroup = null;
 
                     if (isIPCCall)
@@ -188,11 +188,16 @@ public static class TravelManager
                     {
                         var selectedResult =
                             await WindowManager.Get<WorldSelectorWindows>()
-                                               .OpenTravelWindow(false, true, false, areas, currentDCName,
+                                               .OpenTravelWindow(false, 
+                                                                 true, 
+                                                                 false,
+                                                                 areas, 
+                                                                 currentDCName,
                                                                  currentWorld.InternalName.ToString());
                         if (selectedResult == null)
                         {
                             Service.Log.Info("取消传送");
+                            lastTravelTime = DateTime.MinValue;
                             return;
                         }
 
@@ -216,10 +221,11 @@ public static class TravelManager
                     {
                         
                         var costMsgBox = await MessageBoxWindow.Show(WindowManager.WindowSystem, title,
-                                                                     $"超域传送预计需要等待: {waitTimeMessage}", MessageBoxType.YesNo);
+                                                                     $"超域传送状态: {waitTimeMessage}", MessageBoxType.YesNo);
                         if (costMsgBox != MessageBoxResult.Yes)
                         {
                             Service.Log.Info("取消传送");
+                            lastTravelTime = DateTime.MinValue;
                             return;
                         }
                     }
@@ -341,7 +347,7 @@ public static class TravelManager
         var worldSheet       = Service.DataManager.GetExcelSheet<World>();
         var currentWorldName = worldSheet.GetRow((uint)currentWorldID).Name.ExtractText();
         var targetWorldName  = worldSheet.GetRow((uint)targetWorldId).Name.ExtractText();
-        var areas            = await instance.QueryGroupListTravelTarget(7, 5); // 获取全部大区信息
+        var areas            = await instance.QueryGroupListTravelTarget(9, 5); // 获取全部大区信息
         var isGetSourceGroup = TryGetGroup(areas, currentWorldName, out var Source);
 
         if (isBack && isGetSourceGroup)
