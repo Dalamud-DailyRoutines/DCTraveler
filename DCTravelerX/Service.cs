@@ -25,14 +25,16 @@ public class Service
     
     internal static IDalamudPluginInterface PI        { get; private set; } = null!;
     internal static IUiBuilder              UIBuilder { get; private set; } = null!;
-    
+    internal static Configuration           Config    { get; private set; } = null!;
+
     public static void Init(IDalamudPluginInterface pi)
     {
         PI        = pi;
         UIBuilder = PI.UiBuilder;
-        
+        Config    = PI.GetPluginConfig() as Configuration ?? new Configuration();
+
         PI.Create<Service>();
-        
+
         try
         {
             ServerDataManager.Init();
@@ -41,7 +43,7 @@ public class Service
             TitleScreenButtonManager.Init();
             ContextMenuManager.Init();
             IPCManager.Init();
-            
+
             _ = DCTravelClient.Instance(GameFunctions.GetLauncherDCTravelPort());
         }
         catch (Exception ex)
