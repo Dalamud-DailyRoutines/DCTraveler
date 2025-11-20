@@ -456,10 +456,8 @@ public static class TravelManager
                message.Contains("稍晚再次尝试") ||
                message.Contains("用户数量较多") ||
                message.Contains("数量较多") ||
-               message.Contains("排队") ||
-               message.Contains("-10600032") ||
-               message.Contains("较多") ||
-               message.Contains("尝试");
+               message.Contains("排队");
+              
     }
 
     private static string ExtractErrorMessage(Exception ex)
