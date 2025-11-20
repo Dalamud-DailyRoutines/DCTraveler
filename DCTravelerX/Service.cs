@@ -22,6 +22,7 @@ public class Service
     [PluginService] internal static ISigScanner      SigScanner      { get; private set; } = null!;
     [PluginService] internal static IFramework       Framework       { get; private set; } = null!;
     [PluginService] internal static ITitleScreenMenu TitleScreenMenu { get; private set; } = null!;
+    [PluginService] internal static IKeyState        KeyState        { get; private set; } = null!;
     
     internal static IDalamudPluginInterface PI        { get; private set; } = null!;
     internal static IUiBuilder              UIBuilder { get; private set; } = null!;

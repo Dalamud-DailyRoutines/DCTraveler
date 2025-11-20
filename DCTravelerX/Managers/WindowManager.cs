@@ -70,14 +70,12 @@ public class WindowManager
         {
             AddWindow(new WorldSelectorWindows());
             AddWindow(new DCGroupSelectorWindow());
-            AddWindow(new TravelCancelWindow());
         }
 
         internal static void Uninit()
         {
             Get<WorldSelectorWindows>()?.Dispose();
             Get<DCGroupSelectorWindow>()?.Dispose();
-            Get<TravelCancelWindow>()?.Dispose();
         }
     }
 }

@@ -91,7 +91,7 @@ public static class TravelManager
 
                 await ApplyCooldownBeforeProcessing();
 
-                var (targetDCGroupName, retryConfig, shouldContinue) = await PrepareOrderContext(
+                var (targetDCGroupName, targetGroup, enableRetry, retryCount, shouldContinue) = await PrepareOrderContext(
                                                        isBack,
                                                        targetWorldID,
                                                        contentId,
@@ -106,7 +106,7 @@ public static class TravelManager
                 if (!shouldContinue)
                     return;
 
-                await ExecuteOrderWithRetry(targetDCGroupName, isIPCCall, retryConfig,
+                await ExecuteOrderWithRetry(targetDCGroupName, targetGroup, enableRetry, retryCount, isIPCCall,
                                            isBack, targetWorldID, contentId, currentGroup,
                                            currentDCName, currentWorld, currentCharacterName, title);
             }
@@ -186,7 +186,7 @@ public static class TravelManager
         return (currentWorld, currentDCName, currentGroup);
     }
 
-    private static async Task<(string targetDCGroupName, SelectWorldResult? retryConfig, bool shouldContinue)> PrepareOrderContext(
+    private static async Task<(string targetDCGroupName, Group? targetGroup, bool enableRetry, int retryCount, bool shouldContinue)> PrepareOrderContext(
         bool   isBack,
         int    targetWorldID,
         ulong  contentId,
@@ -213,7 +213,7 @@ public static class TravelManager
                                                      .OpenTravelWindow(true,                   false,             true, DCTravelClient.CachedAreas, currentDCName,
                                                                        currentGroup.GroupCode, targetDCGroupName, currentWorld.Name.ExtractText());
                 if (selectWorld == null)
-                    return (string.Empty, null, false);
+                    return (string.Empty, null, false, 0, false);
 
                 currentGroup = selectWorld.Source;
             }
@@ -228,7 +228,7 @@ public static class TravelManager
 
             await Service.Framework.RunOnFrameworkThread(() => GameFunctions.OpenWaitAddon($"正在返回原始大区: {targetDCGroupName}"));
 
-            return (targetDCGroupName, null, true);
+            return (targetDCGroupName, null, false, 0, true);
         }
         else
         {
@@ -255,7 +255,7 @@ public static class TravelManager
                 {
                     Service.Log.Info("取消传送");
                     lastTravelTime = DateTime.MinValue;
-                    return (string.Empty, null, false);
+                    return (string.Empty, null, false, 0, false);
                 }
 
                 targetGroup = selectedResult.Target;
@@ -282,20 +282,26 @@ public static class TravelManager
                 {
                     Service.Log.Info("取消传送");
                     lastTravelTime = DateTime.MinValue;
-                    return (string.Empty, null, false);
+                    return (string.Empty, null, false, 0, false);
                 }
             }
 
             await Service.Framework.RunOnFrameworkThread(GameFunctions.ReturnToTitle);
             await Service.Framework.RunOnFrameworkThread(() => GameFunctions.OpenWaitAddon($"正在前往目标大区: {targetDCGroupName}\n预计需要等待: {waitTimeMessage}"));
-            return (targetDCGroupName, selectedResult, true);
+
+            var enableRetry = selectedResult?.EnableRetry ?? false;
+            var retryCount = selectedResult?.RetryCount ?? 0;
+
+            return (targetDCGroupName, targetGroup, enableRetry, retryCount, true);
         }
     }
 
     private static async Task ExecuteOrderWithRetry(
         string targetDCGroupName,
+        Group? targetGroup,
+        bool enableRetry,
+        int maxRetries,
         bool isIPCCall,
-        SelectWorldResult? retryConfig,
         bool isBack,
         int targetWorldID,
         ulong contentId,
@@ -305,9 +311,6 @@ public static class TravelManager
         string currentCharacterName,
         string title)
     {
-        var enableRetry = retryConfig?.EnableRetry ?? false;
-        var maxRetries = retryConfig?.RetryCount ?? 0;
-
         Service.Log.Info($"ExecuteOrderWithRetry - EnableRetry: {enableRetry}, MaxRetries: {maxRetries}, IsIPCCall: {isIPCCall}, IsBack: {isBack}");
 
         if (isIPCCall || isBack)
@@ -315,22 +318,14 @@ public static class TravelManager
 
         var retryCount = 0;
         Exception? lastException = null;
-        var cancelWindow = WindowManager.Get<TravelCancelWindow>();
-
-        if (enableRetry && cancelWindow != null)
-        {
-            cancelWindow.Reset();
-            await Service.Framework.RunOnFrameworkThread(() => cancelWindow.IsOpen = true);
-        }
+        var userCancelled = false;
 
         while (retryCount <= maxRetries)
         {
-            if (enableRetry && cancelWindow != null && cancelWindow.IsCancelled)
+            if (enableRetry && Service.KeyState[Dalamud.Game.ClientState.Keys.VirtualKey.SHIFT])
             {
-                Service.Log.Info("用户取消了传送操作");
-                lastCancelTime = DateTime.UtcNow;
-                await Service.Framework.RunOnFrameworkThread(() => cancelWindow.IsOpen = false);
-                throw new Exception("用户取消了传送操作");
+                Service.Log.Info("检测到 Shift 键按下，等待当前订单完成后取消");
+                userCancelled = true;
             }
 
             try
@@ -347,21 +342,25 @@ public static class TravelManager
                 else
                 {
                     var instance = DCTravelClient.Instance();
-                    var areas = await instance.QueryGroupListTravelTarget(9, 5);
 
-                    Group? targetGroup;
-                    if (isIPCCall)
+                    if (targetGroup == null)
                     {
-                        if (!Service.DataManager.GetExcelSheet<World>().TryGetRow((uint)targetWorldID, out var targetWorldIPC))
-                            throw new Exception($"[IPC] 无法获取目标服务器 {targetWorldID} 的信息");
+                        var areas = await instance.QueryGroupListTravelTarget(9, 5);
 
-                        if (!TryGetGroup(areas, targetWorldIPC.Name.ExtractText(), out targetGroup))
-                            throw new Exception($"[IPC] 无法找到目标服务器 {targetWorldID} 的信息");
-                    }
-                    else
-                    {
-                        if (!TryGetGroup(areas, retryConfig!.Target.GroupName, out targetGroup))
-                            throw new Exception($"无法找到目标服务器 {retryConfig.Target.GroupName} 的信息");
+                        if (isIPCCall)
+                        {
+                            if (!Service.DataManager.GetExcelSheet<World>().TryGetRow((uint)targetWorldID, out var targetWorldIPC))
+                                throw new Exception($"[IPC] 无法获取目标服务器 {targetWorldID} 的信息");
+
+                            if (!TryGetGroup(areas, targetWorldIPC.Name.ExtractText(), out var foundGroup))
+                                throw new Exception($"[IPC] 无法找到目标服务器 {targetWorldID} 的信息");
+
+                            targetGroup = foundGroup;
+                        }
+                        else
+                        {
+                            throw new Exception("非 IPC 调用时必须提供目标组信息");
+                        }
                     }
 
                     var chara = new Character { ContentId = contentId.ToString(), Name = currentCharacterName };
@@ -371,8 +370,11 @@ public static class TravelManager
 
                 await ProcessingOrder(currentOrderID, targetDCGroupName, isIPCCall);
 
-                if (enableRetry && cancelWindow != null)
-                    await Service.Framework.RunOnFrameworkThread(() => cancelWindow.IsOpen = false);
+                if (userCancelled)
+                {
+                    Service.Log.Info("订单已完成，用户已取消，设置冷却时间");
+                    lastCancelTime = DateTime.UtcNow;
+                }
 
                 return;
             }
@@ -381,11 +383,16 @@ public static class TravelManager
                 Service.Log.Info($"捕获异常 - EnableRetry: {enableRetry}, RetryCount: {retryCount}, MaxRetries: {maxRetries}");
                 Service.Log.Info($"异常消息: {ex.Message}");
 
+                if (userCancelled)
+                {
+                    Service.Log.Info("用户已取消，订单执行失败，设置冷却时间");
+                    lastCancelTime = DateTime.UtcNow;
+                    throw new Exception("用户取消了传送操作");
+                }
+
                 if (!enableRetry || retryCount >= maxRetries)
                 {
                     Service.Log.Info("不重试,直接抛出异常");
-                    if (cancelWindow != null)
-                        await Service.Framework.RunOnFrameworkThread(() => cancelWindow.IsOpen = false);
                     throw;
                 }
 
@@ -395,8 +402,6 @@ public static class TravelManager
                 if (!isRetryableError)
                 {
                     Service.Log.Info("不可重试错误,抛出异常");
-                    if (cancelWindow != null)
-                        await Service.Framework.RunOnFrameworkThread(() => cancelWindow.IsOpen = false);
                     throw;
                 }
 
@@ -413,22 +418,16 @@ public static class TravelManager
 
                 while (DateTime.UtcNow - waitStart < retryDelay)
                 {
-                    if (cancelWindow != null && cancelWindow.IsCancelled)
+                    if (Service.KeyState[Dalamud.Game.ClientState.Keys.VirtualKey.SHIFT])
                     {
-                        Service.Log.Info("用户取消了重试操作");
+                        Service.Log.Info("用户按下 Shift 键取消重试操作");
                         lastCancelTime = DateTime.UtcNow;
-                        await Service.Framework.RunOnFrameworkThread(() => cancelWindow.IsOpen = false);
                         throw new Exception("用户取消了传送操作");
                     }
 
                     var remaining = retryDelay - (DateTime.UtcNow - waitStart);
-                    var statusMsg = $"传送失败 (第 {retryCount}/{maxRetries} 次重试)\n还需等待: {remaining.TotalSeconds:F0} 秒后重试";
-
-                    if (cancelWindow != null)
-                        await Service.Framework.RunOnFrameworkThread(() => cancelWindow.UpdateStatus(statusMsg));
-
                     var errorMsg = ExtractErrorMessage(ex);
-                    var waitAddonMsg = $"传送失败 (第 {retryCount}/{maxRetries} 次重试)\n错误: {errorMsg}\n还需等待: {remaining.TotalSeconds:F0} 秒后重试";
+                    var waitAddonMsg = $"传送失败 (第 {retryCount}/{maxRetries} 次重试)\n错误: {errorMsg}\n还需等待: {remaining.TotalSeconds:F0} 秒后重试 (按住Shift取消传送状态)";
                     await Service.Framework.RunOnFrameworkThread(() => GameFunctions.UpdateWaitAddon(waitAddonMsg));
                     await Task.Delay(1000);
                 }
@@ -436,9 +435,6 @@ public static class TravelManager
                 Service.Log.Info($"开始第 {retryCount} 次重试...");
             }
         }
-
-        if (cancelWindow != null)
-            await Service.Framework.RunOnFrameworkThread(() => cancelWindow.IsOpen = false);
 
         if (lastException != null)
         {
