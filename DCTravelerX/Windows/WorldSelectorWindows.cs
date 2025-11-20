@@ -8,6 +8,7 @@ using DCTravelerX.Helpers;
 using DCTravelerX.Infos;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility;
+using DCTravelerX.Managers;
 
 namespace DCTravelerX.Windows;
 
@@ -34,8 +35,7 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
     }
 
     public override void Draw()
-    { 
-        ImGui.GetColorU32(ImGuiCol.WindowBg);
+    {
         var columnWidth = ImGui.CalcTextSize("一二三四五六七八九十").X   * 2;
         var childHeight = ImGui.GetTextLineHeightWithSpacing() * (int)(8 * ImGuiHelpers.GlobalScale);
         
@@ -160,9 +160,10 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
         
         var disableAction = selectedSourceGroup == null || selectedTargetGroup == null ||
                             (selectedSourceArea != null && selectedTargetArea != null && selectedSourceArea.AreaId == selectedTargetArea.AreaId);
+        
         using (ImRaii.Disabled(disableAction))
         {
-            if (ImGuiOm.ButtonSelectable(isBack ? "返回" : "传送"))
+            if (ImGui.Button(isBack ? "返回" : "传送", new(-1, ImGui.GetTextLineHeightWithSpacing() * 1.5f)))
             {
                 selectWorldTaskCompletionSource?.SetResult(
                     new SelectWorldResult
@@ -174,7 +175,7 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
             }
         }
         
-        if (ImGuiOm.ButtonSelectable("取消"))
+        if (ImGui.Button("取消", new(-1, ImGui.GetTextLineHeightWithSpacing() * 1.5f)))
         {
             selectWorldTaskCompletionSource?.SetResult(null!);
             IsOpen = false;

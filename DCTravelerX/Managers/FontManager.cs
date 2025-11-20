@@ -36,7 +36,7 @@ public class FontManager
                                                            "NotoSansCJKsc-Medium.otf" : "NotoSansCJKjp-Medium.otf");
 
     internal static void Init() => 
-        Task.Run(async () => uiFont = await CreateFontHandleAsync(20f));
+        Task.Run(async () => uiFont = await CreateFontHandleAsync(21f));
 
     private static async Task<IFontHandle> CreateFontHandleAsync(float size)
     {
