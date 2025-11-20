@@ -21,11 +21,19 @@ internal class MessageBoxWindow : Window, IDisposable
     public MessageBoxResult Result;
 
     public MessageBoxWindow(
-        WindowSystem                       windowSystem, string title, string message, MessageBoxType type, object? userdata = null,
+        WindowSystem                       windowSystem,
+        string                             title,
+        string                             message,
+        MessageBoxType                     type,
+        object?                            userdata = null,
         Action<MessageBoxWindow, object?>? callback = null) : base(
         title,
-        ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.Popup |
-        ImGuiWindowFlags.NoCollapse, true)
+        ImGuiWindowFlags.AlwaysAutoResize |
+        ImGuiWindowFlags.NoScrollbar      |
+        ImGuiWindowFlags.NoSavedSettings  |
+        ImGuiWindowFlags.Popup            |
+        ImGuiWindowFlags.NoCollapse,
+        true)
     {
         Title                       = title;
         Message                     = message;
@@ -38,9 +46,13 @@ internal class MessageBoxWindow : Window, IDisposable
         AllowClickthrough           = false;
         messageTaskCompletionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
-    
+
     public static Task<MessageBoxResult> Show(
-        WindowSystem WindowSystem, string title, string message, MessageBoxType type = MessageBoxType.Ok, bool showWebsite = false)
+        WindowSystem   WindowSystem,
+        string         title,
+        string         message,
+        MessageBoxType type        = MessageBoxType.Ok,
+        bool           showWebsite = false)
     {
         var              guid = Guid.NewGuid();
         MessageBoxWindow box  = new(WindowSystem, $"{title}##{guid}", message, type);
@@ -51,8 +63,12 @@ internal class MessageBoxWindow : Window, IDisposable
     }
 
     public static Task<MessageBoxResult> Show(
-        WindowSystem   WindowSystem, string title, string message, object? userdata, Action<MessageBoxWindow, object?> callback,
-        MessageBoxType type = MessageBoxType.Ok)
+        WindowSystem                      WindowSystem,
+        string                            title,
+        string                            message,
+        object?                           userdata,
+        Action<MessageBoxWindow, object?> callback,
+        MessageBoxType                    type = MessageBoxType.Ok)
     {
         var              guid = Guid.NewGuid();
         MessageBoxWindow box  = new(WindowSystem, $"{title}##{guid}", message, type, userdata, callback);
@@ -80,7 +96,7 @@ internal class MessageBoxWindow : Window, IDisposable
         switch (Type)
         {
             case MessageBoxType.Ok:
-                if (ImGui.Button("确定"))
+                if (ImGui.Button("确定", new(-1, ImGui.GetTextLineHeightWithSpacing() * 1.5f)))
                 {
                     IsOpen = false;
                     Result = MessageBoxResult.Ok;
@@ -89,14 +105,13 @@ internal class MessageBoxWindow : Window, IDisposable
                 break;
 
             case MessageBoxType.OkCancel:
-                if (ImGui.Button("确定"))
+                if (ImGui.Button("确定", new(-1, ImGui.GetTextLineHeightWithSpacing() * 1.5f)))
                 {
                     IsOpen = false;
                     Result = MessageBoxResult.Ok;
                 }
 
-                ImGui.SameLine();
-                if (ImGui.Button("取消"))
+                if (ImGui.Button("取消", new(-1, ImGui.GetTextLineHeightWithSpacing() * 1.5f)))
                 {
                     IsOpen = false;
                     Result = MessageBoxResult.Cancel;
@@ -105,14 +120,13 @@ internal class MessageBoxWindow : Window, IDisposable
                 break;
 
             case MessageBoxType.YesCancel:
-                if (ImGui.Button("确定"))
+                if (ImGui.Button("确定", new(-1, ImGui.GetTextLineHeightWithSpacing() * 1.5f)))
                 {
                     IsOpen = false;
                     Result = MessageBoxResult.Yes;
                 }
 
-                ImGui.SameLine();
-                if (ImGui.Button("取消"))
+                if (ImGui.Button("取消", new(-1, ImGui.GetTextLineHeightWithSpacing() * 1.5f)))
                 {
                     IsOpen = false;
                     Result = MessageBoxResult.Cancel;
@@ -121,14 +135,13 @@ internal class MessageBoxWindow : Window, IDisposable
                 break;
 
             case MessageBoxType.YesNo:
-                if (ImGui.Button("确认"))
+                if (ImGui.Button("确认", new(-1, ImGui.GetTextLineHeightWithSpacing() * 1.5f)))
                 {
                     IsOpen = false;
                     Result = MessageBoxResult.Yes;
                 }
 
-                ImGui.SameLine();
-                if (ImGui.Button("取消"))
+                if (ImGui.Button("取消", new(-1, ImGui.GetTextLineHeightWithSpacing() * 1.5f)))
                 {
                     IsOpen = false;
                     Result = MessageBoxResult.No;
@@ -137,21 +150,19 @@ internal class MessageBoxWindow : Window, IDisposable
                 break;
 
             case MessageBoxType.YesNoCancel:
-                if (ImGui.Button("确认"))
+                if (ImGui.Button("确认", new(-1, ImGui.GetTextLineHeightWithSpacing() * 1.5f)))
                 {
                     IsOpen = false;
                     Result = MessageBoxResult.Yes;
                 }
 
-                ImGui.SameLine();
-                if (ImGui.Button("拒绝"))
+                if (ImGui.Button("拒绝", new(-1, ImGui.GetTextLineHeightWithSpacing() * 1.5f)))
                 {
                     IsOpen = false;
                     Result = MessageBoxResult.No;
                 }
 
-                ImGui.SameLine();
-                if (ImGui.Button("取消"))
+                if (ImGui.Button("取消", new(-1, ImGui.GetTextLineHeightWithSpacing() * 1.5f)))
                 {
                     IsOpen = false;
                     Result = MessageBoxResult.Cancel;
@@ -162,6 +173,8 @@ internal class MessageBoxWindow : Window, IDisposable
 
         if (ShowWebsite)
         {
+            ImGui.NewLine();
+            
             ImGui.Text("超域旅行失败, 请查看上方报错提供的指引, 若无有效信息, 请去官网处理");
             
             if (ImGui.Button("打开 [超域旅行]")) 
