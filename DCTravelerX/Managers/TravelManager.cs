@@ -79,7 +79,7 @@ public static class TravelManager
 
             if (!DCTravelClient.IsValid)
             {
-                await MessageBoxWindow.Show(WindowManager.WindowSystem, title, "无法连接至超域旅行 API, 请检查 XIVLauncherCN 设置状态");
+                await MessageBoxWindow.Show(WindowManager.WindowSystem, title, "无法连接至超域旅行 API, 请从 XIVLauncherCN 重新启动游戏");
                 Service.Log.Error("无法连接至 XIVLauncherCN 提供的超域旅行 API 服务");
                 return;
             }
