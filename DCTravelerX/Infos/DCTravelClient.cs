@@ -75,24 +75,6 @@ internal class DCTravelClient
         {
             IsUpdatingAllQueryTime = false;
         }
-
-        return;
-
-        async Task GetWaitTime(Group group)
-        {
-            await Lock.WaitAsync();
-            
-            try
-            {
-                var waitTime = await QueryTravelQueueTime(group.AreaId, group.GroupId);
-                group.QueueTime = waitTime;
-                Service.Log.Debug($"获取 {group.GroupName} ({group.AreaName}) 当前等待时间: {waitTime}");
-            }
-            finally
-            {
-                Lock.Release();
-            }
-        }
     }
     
     public async Task<T> RequestApi<T>(object[] objs, [CallerMemberName] string? method = null)
