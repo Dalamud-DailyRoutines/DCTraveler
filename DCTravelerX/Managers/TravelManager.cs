@@ -63,6 +63,7 @@ public static class TravelManager
     {
         await TravelSemaphore.WaitAsync();
 
+        var withAnyException = false;
         try
         {
             IsOnTravelling = true;
@@ -109,11 +110,13 @@ public static class TravelManager
             catch (Exception ex)
             {
                 await MessageBoxWindow.Show(WindowManager.WindowSystem, title, $"{title} 失败:\n{ex.Message}", showWebsite: true);
-                Service.Log.Error(ex, $"跨大区失败:");
+                Service.Log.Error(ex, "跨大区失败");
+
+                withAnyException = true;
             } 
             finally
             {
-                CleanupAfterTravel();
+                CleanupAfterTravel(withAnyException);
             }
         } 
         finally
@@ -286,13 +289,16 @@ public static class TravelManager
         }
     }
 
-    private static void CleanupAfterTravel()
+    private static void CleanupAfterTravel(bool needReLogin)
     {
         GameFunctions.CloseWaitAddon();
         Service.AddonLifecycle.UnregisterListener(OnAddonTitleLogo);
         Service.AddonLifecycle.UnregisterListener(OnAddonTitleMenu);
         GameFunctions.ToggleTitleMenu(true);
         GameFunctions.ToggleTitleLogo(true);
+
+        if (needReLogin)
+            GameFunctions.LoginInGame();
     }
 
     public static async Task<MigrationOrder> GetTravelingOrder(ulong contentId)
