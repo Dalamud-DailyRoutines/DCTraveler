@@ -64,7 +64,14 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                         foreach (var area in areas)
                         {
                             var selected = selectedSourceArea?.AreaId == area.AreaId;
-                            if (ImGui.Selectable(area.AreaName, selected))
+                            var stateText = area.State switch
+                            {
+                                0 => "通畅",
+                                2 => "热门",
+                                _ => "火爆"
+                            };
+                            
+                            if (ImGui.Selectable($"{area.AreaName} ({stateText})", selected))
                             {
                                 selectedSourceArea  = area;
                                 selectedSourceGroup = null;
@@ -126,7 +133,14 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                             if (selectedSourceArea?.AreaId == area.AreaId) continue;
                             
                             var selected = selectedTargetArea?.AreaId == area.AreaId;
-                            if (ImGui.Selectable(area.AreaName, selected))
+                            var stateText = area.State switch
+                            {
+                                0 => "通畅",
+                                2 => "热门",
+                                _ => "火爆"
+                            };
+                            
+                            if (ImGui.Selectable($"{area.AreaName} ({stateText})", selected))
                             {
                                 selectedTargetArea  = area;
                                 selectedTargetGroup = area.GroupList.FirstOrDefault();
@@ -147,10 +161,9 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                                 var queueTime = group.QueueTime ?? -1;
                                 var waitTimeMessage = queueTime switch
                                 {
-                                    0    => "即刻完成",
-                                    -1   => "禁止传送",
-                                    -999 => "繁忙",
-                                    _    => $"{queueTime} 分钟"
+                                    0          => "即刻完成",
+                                    -999 or -1 => "繁忙",
+                                    _          => $"{queueTime} 分钟"
                                 };
                                 var label    = $"{group.GroupName} (状态: {waitTimeMessage})";
                                 var selected = selectedTargetGroup?.GroupId == group.GroupId;

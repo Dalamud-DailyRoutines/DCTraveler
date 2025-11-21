@@ -5,6 +5,9 @@ namespace DCTravelerX.Infos;
 
 public class Area
 {
+    [JsonPropertyName("state")]
+    public int State { get; set; }
+    
     [JsonPropertyName("areaId")]
     public int AreaId { get; set; }
 
