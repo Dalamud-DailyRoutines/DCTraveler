@@ -177,15 +177,21 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
             {
                 retryCount = Service.Config.MaxRetryCount;
             }
+            Service.Config.EnableAutoRetry = enableRetry;
+            Service.Config.Save();
         }
 
         if (enableRetry)
         {
             ImGui.SameLine();
             ImGui.SetNextItemWidth(100);
-            ImGui.InputInt("重试次数", ref retryCount);
-            if (retryCount < 1) retryCount = 1;
-            if (retryCount > 20) retryCount = 20;
+            if (ImGui.InputInt("重试次数", ref retryCount))
+            {
+                if (retryCount < 1) retryCount = 1;
+                if (retryCount > 20) retryCount = 20;
+                Service.Config.MaxRetryCount = retryCount;
+                Service.Config.Save();
+            }
         }
 
         ImGui.Spacing();
@@ -203,9 +209,7 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                     new SelectWorldResult
                     {
                         Source = selectedSourceGroup!,
-                        Target = selectedTargetGroup!,
-                        EnableRetry = enableRetry,
-                        RetryCount = retryCount
+                        Target = selectedTargetGroup!
                     });
                 IsOpen = false;
             }

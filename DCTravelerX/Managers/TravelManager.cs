@@ -289,8 +289,8 @@ public static class TravelManager
             await Service.Framework.RunOnFrameworkThread(GameFunctions.ReturnToTitle);
             await Service.Framework.RunOnFrameworkThread(() => GameFunctions.OpenWaitAddon($"正在前往目标大区: {targetDCGroupName}\n预计需要等待: {waitTimeMessage}"));
 
-            var enableRetry = selectedResult?.EnableRetry ?? false;
-            var retryCount = selectedResult?.RetryCount ?? 0;
+            var enableRetry = Service.Config.EnableAutoRetry;
+            var retryCount = Service.Config.MaxRetryCount;
 
             return (targetDCGroupName, targetGroup, enableRetry, retryCount, true);
         }
