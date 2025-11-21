@@ -22,17 +22,20 @@ public class Service
     [PluginService] internal static ISigScanner      SigScanner      { get; private set; } = null!;
     [PluginService] internal static IFramework       Framework       { get; private set; } = null!;
     [PluginService] internal static ITitleScreenMenu TitleScreenMenu { get; private set; } = null!;
+    [PluginService] internal static IKeyState        KeyState        { get; private set; } = null!;
     
     internal static IDalamudPluginInterface PI        { get; private set; } = null!;
     internal static IUiBuilder              UIBuilder { get; private set; } = null!;
-    
+    internal static Configuration           Config    { get; private set; } = null!;
+
     public static void Init(IDalamudPluginInterface pi)
     {
         PI        = pi;
         UIBuilder = PI.UiBuilder;
-        
+        Config    = PI.GetPluginConfig() as Configuration ?? new Configuration();
+
         PI.Create<Service>();
-        
+
         try
         {
             ServerDataManager.Init();
@@ -41,7 +44,7 @@ public class Service
             TitleScreenButtonManager.Init();
             ContextMenuManager.Init();
             IPCManager.Init();
-            
+
             _ = DCTravelClient.Instance(GameFunctions.GetLauncherDCTravelPort());
         }
         catch (Exception ex)

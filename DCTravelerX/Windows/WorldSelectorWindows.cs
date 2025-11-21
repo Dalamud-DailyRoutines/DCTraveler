@@ -15,7 +15,7 @@ namespace DCTravelerX.Windows;
 internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.AlwaysAutoResize), IDisposable
 {
     private TaskCompletionSource<SelectWorldResult>? selectWorldTaskCompletionSource;
-    
+
     private bool       showSourceWorld = true;
     private bool       showTargetWorld = true;
     private bool       isBack;
@@ -25,11 +25,20 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
     private Area?      selectedTargetArea;
     private Group?     selectedTargetGroup;
 
+    private bool enableRetry;
+    private int  retryCount;
+
+    public override void OnClose()
+    {
+        selectWorldTaskCompletionSource?.TrySetResult(null!);
+        base.OnClose();
+    }
+
     public override void PreDraw()
     {
         var viewport = ImGui.GetMainViewport();
         var center   = viewport.GetCenter();
-        
+
         ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new(0.5f));
         base.PreDraw();
     }
@@ -157,7 +166,38 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                 }
             }
         }
-        
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        if (ImGui.Checkbox("传送失败时自动重试", ref enableRetry))
+        {
+            if (enableRetry && retryCount < 1)
+            {
+                retryCount = Service.Config.MaxRetryCount;
+            }
+            Service.Config.EnableAutoRetry = enableRetry;
+            Service.Config.Save();
+        }
+
+        if (enableRetry)
+        {
+            ImGui.SameLine();
+            ImGui.SetNextItemWidth(100);
+            if (ImGui.InputInt("重试次数", ref retryCount))
+            {
+                if (retryCount < 1) retryCount = 1;
+                if (retryCount > 20) retryCount = 20;
+                Service.Config.MaxRetryCount = retryCount;
+                Service.Config.Save();
+            }
+        }
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
         var disableAction = selectedSourceGroup == null || selectedTargetGroup == null ||
                             (selectedSourceArea != null && selectedTargetArea != null && selectedSourceArea.AreaId == selectedTargetArea.AreaId);
         
@@ -165,7 +205,7 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
         {
             if (ImGui.Button(isBack ? "返回" : "传送", new(-1, ImGui.GetTextLineHeightWithSpacing() * 1.5f)))
             {
-                selectWorldTaskCompletionSource?.SetResult(
+                selectWorldTaskCompletionSource?.TrySetResult(
                     new SelectWorldResult
                     {
                         Source = selectedSourceGroup!,
@@ -174,10 +214,10 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                 IsOpen = false;
             }
         }
-        
+
         if (ImGui.Button("取消", new(-1, ImGui.GetTextLineHeightWithSpacing() * 1.5f)))
         {
-            selectWorldTaskCompletionSource?.SetResult(null!);
+            selectWorldTaskCompletionSource?.TrySetResult(null!);
             IsOpen = false;
         }
     }
@@ -202,6 +242,9 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
         selectedSourceGroup = null;
         selectedTargetArea  = null;
         selectedTargetGroup = null;
+
+        enableRetry = Service.Config.EnableAutoRetry;
+        retryCount  = Service.Config.MaxRetryCount;
 
         selectedSourceArea = currentDCName != null
                                  ? areasData.FirstOrDefault(a => a.AreaName == currentDCName)
