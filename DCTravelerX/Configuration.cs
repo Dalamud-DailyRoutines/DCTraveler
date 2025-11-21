@@ -8,14 +8,10 @@ public class Configuration : IPluginConfiguration
 {
     public int Version { get; set; } = 1;
 
-    public bool EnableAutoRetry { get; set; } = false;
+    public bool EnableAutoRetry   { get; set; } = true;
+    public int  MaxRetryCount     { get; set; } = 20;
+    public int  RetryDelaySeconds { get; set; } = 60;
 
-    public int MaxRetryCount { get; set; } = 20;
-
-    public int RetryDelaySeconds { get; set; } = 60;
-
-    public void Save()
-    {
+    public void Save() => 
         Service.PI.SavePluginConfig(this);
-    }
 }

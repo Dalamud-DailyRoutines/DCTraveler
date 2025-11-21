@@ -55,7 +55,7 @@ public static class TravelManager
     internal static async Task ExecuteTravelFlow(
         int     targetWorldID,
         int     currentWorldID,
-        ulong   contentId,
+        ulong   contentID,
         bool    isBack,
         bool    needSelectCurrentWorld,
         string  currentCharacterName,
@@ -88,27 +88,33 @@ public static class TravelManager
             try
             {
                 var (currentWorld, currentDCName, currentGroup) = GetSourceContext(currentWorldID);
-
-                await ApplyCooldownBeforeProcessing();
-
+                
                 var (targetDCGroupName, targetGroup, enableRetry, retryCount, shouldContinue) = await PrepareOrderContext(
                                                        isBack,
                                                        targetWorldID,
-                                                       contentId,
+                                                       contentID,
                                                        currentGroup,
                                                        currentDCName,
                                                        currentWorld,
-                                                       currentCharacterName,
                                                        isIPCCall,
                                                        title,
                                                        needSelectCurrentWorld);
 
                 if (!shouldContinue)
                     return;
+                
+                await ApplyCooldownBeforeProcessing();
 
-                await ExecuteOrderWithRetry(targetDCGroupName, targetGroup, enableRetry, retryCount, isIPCCall,
-                                           isBack, targetWorldID, contentId, currentGroup,
-                                           currentDCName, currentWorld, currentCharacterName, title);
+                await ExecuteOrderWithRetry(targetDCGroupName,
+                                            targetGroup,
+                                            enableRetry,
+                                            retryCount,
+                                            isIPCCall,
+                                            isBack,
+                                            targetWorldID,
+                                            contentID,
+                                            currentGroup,
+                                            currentCharacterName);
             }
             catch (Exception ex)
             {
@@ -159,7 +165,7 @@ public static class TravelManager
             while (DateTime.UtcNow - waitStart < delay)
             {
                 var remaining = delay - (DateTime.UtcNow - waitStart);
-                var message = $"传送请求过于频繁\n请等待 {remaining.TotalSeconds:F0} 秒后自动继续...";
+                var message = $"传送请求过于频繁\n等待 {remaining.TotalSeconds:F0} 秒后自动继续……";
                 await Service.Framework.RunOnFrameworkThread(() => GameFunctions.OpenWaitAddon(message));
                 await Service.Framework.RunOnFrameworkThread(() => GameFunctions.UpdateWaitAddon(message));
                 await Task.Delay(500);
@@ -193,7 +199,6 @@ public static class TravelManager
         Group  currentGroup,
         string currentDCName,
         World  currentWorld,
-        string currentCharacterName,
         bool   isIPCCall,
         string title,
         bool   needSelectCurrentWorld)
@@ -210,8 +215,14 @@ public static class TravelManager
             if (needSelectCurrentWorld && !isIPCCall)
             {
                 var selectWorld = await WindowManager.Get<WorldSelectorWindows>()
-                                                     .OpenTravelWindow(true,                   false,             true, DCTravelClient.CachedAreas, currentDCName,
-                                                                       currentGroup.GroupCode, targetDCGroupName, currentWorld.Name.ExtractText());
+                                                     .OpenTravelWindow(true,
+                                                                       false,
+                                                                       true,
+                                                                       DCTravelClient.CachedAreas,
+                                                                       currentDCName,
+                                                                       currentGroup.GroupCode,
+                                                                       targetDCGroupName,
+                                                                       currentWorld.Name.ExtractText());
                 if (selectWorld == null)
                     return (string.Empty, null, false, 0, false);
 
@@ -234,7 +245,6 @@ public static class TravelManager
         {
             var    areas       = await instance.QueryGroupListTravelTarget(9, 5);
             Group? targetGroup = null;
-            SelectWorldResult? selectedResult = null;
 
             if (isIPCCall)
             {
@@ -249,7 +259,7 @@ public static class TravelManager
             }
             else
             {
-                selectedResult = await WindowManager.Get<WorldSelectorWindows>()
+                var selectedResult = await WindowManager.Get<WorldSelectorWindows>()
                                                         .OpenTravelWindow(false, true, false, areas, currentDCName, currentWorld.InternalName.ToString());
                 if (selectedResult == null)
                 {
@@ -261,7 +271,6 @@ public static class TravelManager
                 targetGroup = selectedResult.Target;
             }
 
-            var chara = new Character { ContentId = contentId.ToString(), Name = currentCharacterName };
             Service.Log.Info($"超域旅行: {targetGroup.AreaName}@{targetGroup.GroupName}");
 
             var targetDCGroupName = targetGroup.AreaName;
@@ -299,20 +308,15 @@ public static class TravelManager
     private static async Task ExecuteOrderWithRetry(
         string targetDCGroupName,
         Group? targetGroup,
-        bool enableRetry,
-        int maxRetries,
-        bool isIPCCall,
-        bool isBack,
-        int targetWorldID,
-        ulong contentId,
-        Group currentGroup,
-        string currentDCName,
-        World currentWorld,
-        string currentCharacterName,
-        string title)
+        bool   enableRetry,
+        int    maxRetries,
+        bool   isIPCCall,
+        bool   isBack,
+        int    targetWorldID,
+        ulong  contentId,
+        Group  currentGroup,
+        string currentCharacterName)
     {
-        Service.Log.Info($"ExecuteOrderWithRetry - EnableRetry: {enableRetry}, MaxRetries: {maxRetries}, IsIPCCall: {isIPCCall}, IsBack: {isBack}");
-
         if (isIPCCall || isBack)
             enableRetry = false;
 
@@ -371,10 +375,7 @@ public static class TravelManager
                 await ProcessingOrder(currentOrderID, targetDCGroupName, isIPCCall);
 
                 if (userCancelled)
-                {
-                    Service.Log.Info("订单已完成，用户已取消，设置冷却时间");
                     lastCancelTime = DateTime.UtcNow;
-                }
 
                 return;
             }
@@ -385,9 +386,8 @@ public static class TravelManager
 
                 if (userCancelled)
                 {
-                    Service.Log.Info("用户已取消，订单执行失败，设置冷却时间");
                     lastCancelTime = DateTime.UtcNow;
-                    throw new Exception("用户取消了传送操作");
+                    throw new Exception("取消了传送操作");
                 }
 
                 if (!enableRetry || retryCount >= maxRetries)
@@ -420,14 +420,13 @@ public static class TravelManager
                 {
                     if (Service.KeyState[Dalamud.Game.ClientState.Keys.VirtualKey.SHIFT])
                     {
-                        Service.Log.Info("用户按下 Shift 键取消重试操作");
                         lastCancelTime = DateTime.UtcNow;
-                        throw new Exception("用户取消了传送操作");
+                        throw new Exception("取消了传送操作");
                     }
 
                     var remaining = retryDelay - (DateTime.UtcNow - waitStart);
                     var errorMsg = ExtractErrorMessage(ex);
-                    var waitAddonMsg = $"传送失败 (第 {retryCount}/{maxRetries} 次重试)\n错误: {errorMsg}\n还需等待: {remaining.TotalSeconds:F0} 秒后重试 (按住Shift取消传送状态)";
+                    var waitAddonMsg = $"错误: {errorMsg}\n第 {retryCount}/{maxRetries} 次重试 / 等待: {remaining.TotalSeconds:F0} 秒后重试 (按住 Shift 取消传送)";
                     await Service.Framework.RunOnFrameworkThread(() => GameFunctions.UpdateWaitAddon(waitAddonMsg));
                     await Task.Delay(1000);
                 }
@@ -446,14 +445,12 @@ public static class TravelManager
     private static bool IsRetryableError(Exception ex)
     {
         var message = ex.Message;
-        return message.Contains("传送失败") ||
-               message.Contains("繁忙") ||
+        return message.Contains("传送失败")     ||
+               message.Contains("繁忙")       ||
                message.Contains("请您稍晚再次尝试") ||
-               message.Contains("稍晚再次尝试") ||
-               message.Contains("用户数量较多") ||
-               message.Contains("数量较多") ||
-               message.Contains("排队");
-              
+               message.Contains("稍晚再次尝试")   ||
+               message.Contains("用户数量较多");
+
     }
 
     private static string ExtractErrorMessage(Exception ex)
@@ -470,18 +467,18 @@ public static class TravelManager
             var atIndex = message.IndexOf("\nat ", StringComparison.Ordinal);
             if (atIndex > 0)
             {
-                message = message.Substring(0, atIndex).Trim();
+                message = message[..atIndex].Trim();
             }
         }
 
-        var lines = message.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+        var lines = message.Split(['\n', '\r'], StringSplitOptions.RemoveEmptyEntries);
         if (lines.Length > 0)
         {
             message = lines[0].Trim();
         }
 
         if (message.Length > 150)
-            message = message.Substring(0, 150) + "...";
+            message = message[..150] + "...";
 
         return message;
     }
