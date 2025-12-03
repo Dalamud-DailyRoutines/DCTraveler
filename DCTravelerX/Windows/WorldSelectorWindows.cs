@@ -67,7 +67,8 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                             var stateText = area.State switch
                             {
                                 0 => "通畅",
-                                2 => "热门",
+                                1 => "热门",
+                                2 => "火爆",
                                 _ => "火爆"
                             };
                             
@@ -136,7 +137,8 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                             var stateText = area.State switch
                             {
                                 0 => "通畅",
-                                2 => "热门",
+                                1 => "热门",
+                                2 => "火爆",
                                 _ => "火爆"
                             };
                             
