@@ -101,7 +101,7 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                                     -999 => "繁忙",
                                     _    => $"{queueTime} 分钟"
                                 };
-                                var label    = $"{group.GroupName} (状态: {waitTimeMessage})";
+                                var label    = $"{group.GroupName} ({waitTimeMessage})";
                                 var selected = selectedSourceGroup?.GroupId == group.GroupId;
                                 if (ImGui.Selectable(label, selected))
                                     selectedSourceGroup = group;
@@ -167,7 +167,7 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                                     -999 or -1 => "繁忙",
                                     _          => $"{queueTime} 分钟"
                                 };
-                                var label    = $"{group.GroupName} (状态: {waitTimeMessage})";
+                                var label    = $"{group.GroupName} ({waitTimeMessage})";
                                 var selected = selectedTargetGroup?.GroupId == group.GroupId;
                                 if (ImGui.Selectable(label, selected))
                                     selectedTargetGroup = group;

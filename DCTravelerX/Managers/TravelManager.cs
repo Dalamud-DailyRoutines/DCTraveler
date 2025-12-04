@@ -426,7 +426,7 @@ public static class TravelManager
 
                     var remaining = retryDelay - (DateTime.UtcNow - waitStart);
                     var errorMsg = ExtractErrorMessage(ex);
-                    var waitAddonMsg = $"错误: {errorMsg}\n第 {retryCount}/{maxRetries} 次重试 / 等待: {remaining.TotalSeconds:F0} 秒后重试 (按住 Shift 取消传送)";
+                    var waitAddonMsg = $"错误: {errorMsg}\n第 {retryCount}/{maxRetries} 次重试 / 等待 {remaining.TotalSeconds:F0} 秒后重试 (按住 Shift 取消传送)";
                     await Service.Framework.RunOnFrameworkThread(() => GameFunctions.UpdateWaitAddon(waitAddonMsg));
                     await Task.Delay(1000);
                 }
