@@ -518,7 +518,7 @@ public static class TravelManager
         }
     }
 
-    private static async Task ProcessingOrder(string orderID, string targetDCGroupName, bool isIpcCall)
+    private static async Task ProcessingOrder(string orderID, string targetDCGroupName, bool isIPCCall)
     {
         while (true)
         {
@@ -526,6 +526,7 @@ public static class TravelManager
             Service.Log.Information($"当前订单状态: {status.Status}");
 
             GameFunctions.ResetTitleIdleTime();
+            GameFunctions.OpenWaitAddon(StatusText.GetValueOrDefault(status.Status,   "未知状态"));
             GameFunctions.UpdateWaitAddon(StatusText.GetValueOrDefault(status.Status, "未知状态"));
 
             if (status.Status == MigrationStatus.Completed)
@@ -537,7 +538,7 @@ public static class TravelManager
             if (status.Status == MigrationStatus.NeedConfirm)
             {
                 var confirmResult = MessageBoxResult.Ok;
-                if (!isIpcCall)
+                if (!isIPCCall)
                 {
                     confirmResult = await MessageBoxWindow.Show(WindowManager.WindowSystem,
                         "超域旅行确认",
@@ -558,8 +559,8 @@ public static class TravelManager
 
             await Task.Delay(2000);
         }
-
-        await GameFunctions.SelectDCAndLogin(targetDCGroupName);
+        
+        await GameFunctions.SelectDCAndLogin(targetDCGroupName, !isIPCCall);
         UIGlobals.PlaySoundEffect(67);
     }
 

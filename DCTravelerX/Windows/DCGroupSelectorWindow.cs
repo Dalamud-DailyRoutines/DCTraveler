@@ -72,8 +72,14 @@ internal class DCGroupSelectorWindow() : Window("选择大区",
             {
                 Task.Run(async () =>
                 {
-                    try { await GameFunctions.SelectDCAndLogin(area.AreaName); }
-                    catch (Exception ex) { await MessageBoxWindow.Show(WindowManager.WindowSystem, "选择大区", $"大区切换失败:\n{ex}", showWebsite: false); }
+                    try
+                    {
+                        await GameFunctions.SelectDCAndLogin(area.AreaName, true);
+                    }
+                    catch (Exception ex)
+                    {
+                        await MessageBoxWindow.Show(WindowManager.WindowSystem, "选择大区", $"大区切换失败:\n{ex}", showWebsite: false);
+                    }
                 });
                 IsOpen = false;
             }

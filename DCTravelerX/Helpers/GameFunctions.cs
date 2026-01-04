@@ -39,6 +39,8 @@ internal static class GameFunctions
 
     public static unsafe void OpenWaitAddon(string message)
     {
+        if (Service.GameGui.GetAddonByName("LobbyDKT") != null) return;
+        
         var instance = RaptureAtkModule.Instance();
 
         var row = instance->AddonNames.Select((name, index) => new { Name = name.ToString(), Index = index })
@@ -189,13 +191,14 @@ internal static class GameFunctions
         RefreshGameServer();
     }
 
-    public static async Task SelectDCAndLogin(string name)
+    public static async Task SelectDCAndLogin(string name, bool needLogin)
     {
         var newTicket = await DCTravelClient.Instance().RefreshGameSessionId();
 
         ChangeToSdoArea(name);
         ChangeDEVTestSID(newTicket);
         CloseWaitAddon();
-        LoginInGame();
+        if (needLogin)
+            LoginInGame();
     }
 }

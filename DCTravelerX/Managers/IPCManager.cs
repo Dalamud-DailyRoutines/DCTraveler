@@ -44,6 +44,8 @@ public static class IPCManager
 
         GameFunctions.ChangeToSdoArea(name);
         GameFunctions.ChangeDEVTestSID(newTicket);
+        GameFunctions.CloseWaitAddon();
+        GameFunctions.LoginInGame();
         return true;
     }
 
