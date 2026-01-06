@@ -5,7 +5,6 @@ using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
 using DCTravelerX.Managers;
 
@@ -15,9 +14,11 @@ internal class DCTravelClient
 {
     private static DCTravelClient? instance { get; set; }
     
-    public static List<Area> CachedAreas { get; set; } = [];
-    public static bool       IsValid     { get; private set; }
-    
+    public static Dictionary<uint, (Area Area, Dictionary<string, Group> Groups)> Areas             { get; } = [];
+    public static Dictionary<string, uint>                                        WorldNameToAreaID { get; } = [];
+
+    public static bool IsValid { get; private set; }
+
     public bool IsDisposed { get; internal set; }
     
     public bool IsUpdatingAllQueryTime { get; private set; }
@@ -25,8 +26,6 @@ internal class DCTravelClient
     private HttpClient httpClient { get; init; }
 
     private readonly string APIURL;
-
-    private static readonly SemaphoreSlim Lock = new(Environment.ProcessorCount, Environment.ProcessorCount);
     
     public static DCTravelClient Instance(int port = 0)
     {
@@ -42,11 +41,39 @@ internal class DCTravelClient
         httpClient = new HttpClient();
         Task.Run(async () =>
         {
-            CachedAreas = await QueryGroupListTravelTarget(9, 5);
-            IsValid     = true;
+            var areas = await QueryGroupListTravelTarget(9, 5);
+
+            UpdateAreasData(areas);
+            
+            IsValid = true;
 
             _ = Task.Run(async () => await IntervalQueryAllTravelTime());
         });
+    }
+
+    internal static void UpdateAreasData(List<Area> areas)
+    {
+        foreach (var area in areas)
+        {
+            Areas.TryAdd((uint)area.AreaId, new(area, []));
+
+            var orig = Areas[(uint)area.AreaId];
+            orig.Area = area;
+
+            foreach (var group in area.GroupList)
+                orig.Groups[group.GroupName] = group;
+            
+            Areas[(uint)area.AreaId] = orig;
+        }
+        
+        foreach (var (areaIDFromData, (_, groups)) in Areas)
+        {
+            foreach (var group in groups)
+            {
+                group.Value.AreaId           = (int)areaIDFromData;
+                WorldNameToAreaID[group.Key] = areaIDFromData;
+            }
+        }
     }
     
     internal async Task IntervalQueryAllTravelTime()
@@ -63,13 +90,14 @@ internal class DCTravelClient
     
     internal async Task QueryAllTravelTime()
     {
-        if (IsUpdatingAllQueryTime || !IsValid || CachedAreas is not { Count: > 0 }) return;
+        if (IsUpdatingAllQueryTime || !IsValid || Areas is not { Count: > 0 }) return;
         
         try
         {
             IsUpdatingAllQueryTime = true;
 
-            CachedAreas = await QueryGroupListTravelTarget(9, 5);
+            var areas = await QueryGroupListTravelTarget(9, 5);
+            UpdateAreasData(areas);
         }
         finally
         {
@@ -114,7 +142,6 @@ internal class DCTravelClient
     public async Task<List<Character>> QueryRoleList(int areaId, int groupId) => 
         await RequestApi<List<Character>>([areaId, groupId]);
 
-    // 拂晓可能觉得没用所以删掉/回炉改造了？据反馈也不是很准。目前 25/10/11 在官网也抓不到这个请求了
     public async Task<int> QueryTravelQueueTime(int areaID, int groupID)
     {
         try
@@ -123,7 +150,7 @@ internal class DCTravelClient
             if (result is not { Count: > 0 })
                 return 0;
 
-            if (result.SelectMany(x => x.GroupList).FirstOrDefault(x => x.GroupId == groupID) is not { } group)
+            if (result.SelectMany(x => x.GroupList).FirstOrDefault(x => x.GroupID == groupID) is not { } group)
                 return 0;
             
             return group.QueueTime ?? 0;

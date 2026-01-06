@@ -8,7 +8,7 @@ public class Group
     public string AreaName { get; set; }
 
     [JsonPropertyName("groupId")]
-    public int GroupId { get; set; }
+    public int GroupID { get; set; }
 
     [JsonPropertyName("amount")]
     public int Amount { get; set; }

@@ -179,24 +179,23 @@ public static class TravelManager
 
     private static (World currentWorld, string currentDCName, Group currentGroup) GetSourceContext(int currentWorldID)
     {
-        if (!Service.DataManager.GetExcelSheet<World>().TryGetRow((uint)currentWorldID, out var currentWorld))
+        if (!Service.DataManager.GetExcelSheet<World>().TryGetRow((uint)currentWorldID, out var currentWorld) ||
+            !DCTravelClient.WorldNameToAreaID.TryGetValue(currentWorld.Name.ToString(), out var areaID))
             throw new Exception("无法获取当前服务器具体信息数据");
-
+        
         var currentDCName = currentWorld.DataCenter.Value.Name.ExtractText();
-        var currentGroup = DCTravelClient.CachedAreas
-            .FirstOrDefault(x => x.AreaName == currentDCName)?.GroupList
-            .FirstOrDefault(x => x.GroupCode == currentWorld.InternalName.ExtractText());
-        if (currentGroup == null)
+        var foundGroup    = DCTravelClient.Areas[areaID].Groups[currentWorld.Name.ToString()];
+        if (foundGroup == null)
             throw new Exception("无法获取当前区域具体信息数据");
 
-        return (currentWorld, currentDCName, currentGroup);
+        return (currentWorld, currentDCName, foundGroup);
     }
 
     private static async Task<(string targetDCGroupName, Group? targetGroup, bool enableRetry, int retryCount, bool shouldContinue)> PrepareOrderContext(
         bool   isBack,
         int    targetWorldID,
         ulong  contentId,
-        Group  currentGroup,
+        Group  sourceGroup,
         string currentDCName,
         World  currentWorld,
         bool   isIPCCall,
@@ -214,19 +213,19 @@ public static class TravelManager
 
             if (needSelectCurrentWorld && !isIPCCall)
             {
-                var selectWorld = await WindowManager.Get<WorldSelectorWindows>()
+                var result = await WindowManager.Get<WorldSelectorWindows>()
                                                      .OpenTravelWindow(true,
                                                                        false,
                                                                        true,
-                                                                       DCTravelClient.CachedAreas,
                                                                        currentDCName,
-                                                                       currentGroup.GroupCode,
+                                                                       sourceGroup.GroupCode,
                                                                        targetDCGroupName,
                                                                        currentWorld.Name.ExtractText());
-                if (selectWorld == null)
+                if (result == null ||
+                    DCTravelClient.Areas.SelectMany(x => x.Value.Groups.Values).FirstOrDefault(x => x.GroupName == result.Source) is not { } sourceGroupData)
                     return (string.Empty, null, false, 0, false);
 
-                currentGroup = selectWorld.Source;
+                sourceGroup = sourceGroupData;
             }
 
             Service.Log.Information($"当前区服: {currentWorld.Name}@{currentDCName}, 返回目标区服: {targetWorld.Name}@{targetDCGroupName}");
@@ -243,32 +242,33 @@ public static class TravelManager
         }
         else
         {
-            var    areas       = await instance.QueryGroupListTravelTarget(9, 5);
+            await instance.QueryAllTravelTime();
             Group? targetGroup = null;
 
             if (isIPCCall)
             {
-                if (Service.DataManager.GetExcelSheet<World>().TryGetRow((uint)targetWorldID, out var targetWorldIPC))
+                if (Service.DataManager.GetExcelSheet<World>().TryGetRow((uint)targetWorldID, out var targetWorldRow) &&
+                    DCTravelClient.WorldNameToAreaID.TryGetValue(targetWorldRow.Name.ToString(), out var areaID))
                 {
-                    TryGetGroup(areas, targetWorldIPC.Name.ExtractText(), out var foundGroup);
-                    targetGroup = foundGroup;
+                    targetGroup = DCTravelClient.Areas[areaID].Groups[targetWorldRow.Name.ToString()];
                 }
 
-                if (targetGroup == null || targetGroup.GroupId == 0)
+                if (targetGroup == null || targetGroup.GroupID == 0)
                     throw new Exception($"[IPC] 无法找到目标服务器 {targetWorldID} 的信息。");
             }
             else
             {
-                var selectedResult = await WindowManager.Get<WorldSelectorWindows>()
-                                                        .OpenTravelWindow(false, true, false, areas, currentDCName, currentWorld.InternalName.ToString());
-                if (selectedResult == null)
+                var result = await WindowManager.Get<WorldSelectorWindows>()
+                                                        .OpenTravelWindow(false, true, false, currentDCName, currentWorld.InternalName.ToString());
+                if (result == null ||
+                    DCTravelClient.Areas.SelectMany(x => x.Value.Groups.Values).FirstOrDefault(x => x.GroupName == result.Target) is not { } targetGroupData)
                 {
                     Service.Log.Info("取消传送");
                     lastTravelTime = DateTime.MinValue;
                     return (string.Empty, null, false, 0, false);
                 }
 
-                targetGroup = selectedResult.Target;
+                targetGroup = targetGroupData;
             }
 
             Service.Log.Info($"超域旅行: {targetGroup.AreaName}@{targetGroup.GroupName}");
@@ -340,7 +340,7 @@ public static class TravelManager
                 {
                     var order = await GetTravelingOrder(contentId);
                     var instance = DCTravelClient.Instance();
-                    currentOrderID = await instance.TravelBack(order.OrderId, currentGroup.GroupId, currentGroup.GroupCode, currentGroup.GroupName);
+                    currentOrderID = await instance.TravelBack(order.OrderId, currentGroup.GroupID, currentGroup.GroupCode, currentGroup.GroupName);
                     Service.Log.Information($"返回订单号: {currentOrderID}");
                 }
                 else
@@ -349,17 +349,16 @@ public static class TravelManager
 
                     if (targetGroup == null)
                     {
-                        var areas = await instance.QueryGroupListTravelTarget(9, 5);
+                        await instance.QueryAllTravelTime();
 
                         if (isIPCCall)
                         {
-                            if (!Service.DataManager.GetExcelSheet<World>().TryGetRow((uint)targetWorldID, out var targetWorldIPC))
+                            if (!Service.DataManager.GetExcelSheet<World>().TryGetRow((uint)targetWorldID, out var targetWorldRow) ||
+                                !DCTravelClient.WorldNameToAreaID.TryGetValue(targetWorldRow.Name.ToString(), out var targetWorldAreaID))
                                 throw new Exception($"[IPC] 无法获取目标服务器 {targetWorldID} 的信息");
 
-                            if (!TryGetGroup(areas, targetWorldIPC.Name.ExtractText(), out var foundGroup))
-                                throw new Exception($"[IPC] 无法找到目标服务器 {targetWorldID} 的信息");
-
-                            targetGroup = foundGroup;
+                            var foundGroup = DCTravelClient.Areas[targetWorldAreaID].Groups[targetWorldRow.Name.ToString()];
+                            targetGroup = foundGroup ?? throw new Exception($"[IPC] 无法找到目标服务器 {targetWorldID} 的信息");
                         }
                         else
                         {
@@ -569,48 +568,4 @@ public static class TravelManager
     
     private static void OnAddonTitleMenu(AddonEvent type, AddonArgs args) => 
         GameFunctions.ToggleTitleMenu(false);
-
-    internal static async Task<string> CreateTravelOrder(int currentWorldID, int targetWorldId, ulong contentId, bool isBack, string currentCharacterName)
-    {
-        var orderID = string.Empty;
-        if (!DCTravelClient.IsValid)
-        {
-            Service.Log.Error("无法连接至 XIVLauncherCN 提供的超域旅行 API 服务");
-            return orderID;
-        }
-
-        var instance         = DCTravelClient.Instance();
-        var worldSheet       = Service.DataManager.GetExcelSheet<World>();
-        var currentWorldName = worldSheet.GetRow((uint)currentWorldID).Name.ExtractText();
-        var targetWorldName  = worldSheet.GetRow((uint)targetWorldId).Name.ExtractText();
-        var areas            = await instance.QueryGroupListTravelTarget(9, 5); // 获取全部大区信息
-        var isGetSourceGroup = TryGetGroup(areas, currentWorldName, out var Source);
-
-        if (isBack && isGetSourceGroup)
-        {
-            var order = await GetTravelingOrder(contentId);
-            orderID = await instance.TravelBack(order.OrderId, Source.GroupId, Source.GroupCode,
-                Source.GroupName);
-            return orderID;
-        }
-
-        var isGetTargetGroup = TryGetGroup(areas, targetWorldName, out var Target);
-        if (isGetSourceGroup && isGetTargetGroup)
-        {
-            var chara = new Character { ContentId = contentId.ToString(), Name = currentCharacterName };
-            await instance.QueryTravelQueueTime(Target.AreaId, Target.GroupId);
-            orderID = await instance.TravelOrder(Target, Source, chara);
-        }
-
-        return orderID;
-    }
-    
-    internal static bool TryGetGroup(IEnumerable<Area> areas, string worldName, out Group t)
-    {
-        var matchedGroup = areas.SelectMany(area => area.GroupList)
-                                .FirstOrDefault(group => group.GroupName == worldName);
-
-        t = matchedGroup ?? new Group();
-        return matchedGroup != null;
-    }
 }

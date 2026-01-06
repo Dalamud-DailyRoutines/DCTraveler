@@ -34,9 +34,9 @@ internal class DCGroupSelectorWindow() : Window("选择大区",
         }
 
         var columnWidth = ImGui.CalcTextSize("一二三四五六七八九十").X;
-        foreach (var dc in DCTravelClient.CachedAreas)
+        foreach (var dc in DCTravelClient.Areas)
         {
-            DrawDcGroup(dc, columnWidth);
+            DrawDcGroup(dc.Value.Area, columnWidth);
             ImGui.SameLine();
         }
     }

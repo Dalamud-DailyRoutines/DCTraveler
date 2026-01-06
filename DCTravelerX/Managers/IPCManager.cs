@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using DCTravelerX.Helpers;
 using DCTravelerX.Infos;
@@ -9,8 +8,6 @@ namespace DCTravelerX.Managers;
 
 public static class IPCManager
 {
-    private static readonly Dictionary<uint, Group> WorldToGroup = [];
-    
     internal static void Init()
     {
         Service.PI.GetIpcProvider<int, int, ulong, bool, string, Task<Exception?>>("DCTravelerX.Travel").RegisterFunc(Travel);
@@ -33,7 +30,7 @@ public static class IPCManager
 
     // 是否正常连接超域旅行 API
     private static bool IsValid() => 
-        DCTravelClient.IsValid && DCTravelClient.CachedAreas is { Count: > 0 };
+        DCTravelClient.IsValid && DCTravelClient.Areas is { Count: > 0 };
 
     private static async Task<bool> SelectDCAndLogin(string name)
     {
@@ -96,17 +93,12 @@ public static class IPCManager
     // 根据服务器获取时间
     private static int GetWaitTime(uint worldID)
     {
-        if (WorldToGroup.TryGetValue(worldID, out var existedGroup))
-            return existedGroup.QueueTime ?? -1;
-
-        if (Service.DataManager.GetExcelSheet<World>().TryGetRow(worldID, out var targetWorldIPC) &&
-            TravelManager.TryGetGroup(DCTravelClient.CachedAreas, targetWorldIPC.Name.ExtractText(), out var foundGroup))
-        {
-            WorldToGroup.Add(worldID, foundGroup);
-            return foundGroup.QueueTime ?? -1;
-        }
+        if (!Service.DataManager.GetExcelSheet<World>().TryGetRow(worldID, out var worldRow) ||
+            !DCTravelClient.WorldNameToAreaID.TryGetValue(worldRow.Name.ToString(), out var areaID)) 
+            return -1;
         
-        return -1;
+        var foundGroup = DCTravelClient.Areas[areaID].Groups[worldRow.Name.ToString()];
+        return foundGroup.QueueTime ?? -1;
     }
 
     // 手动触发请求全部等待时间

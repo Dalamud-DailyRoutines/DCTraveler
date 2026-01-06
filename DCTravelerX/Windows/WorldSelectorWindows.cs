@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Dalamud.Interface.Utility.Raii;
@@ -16,14 +15,15 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
 {
     private TaskCompletionSource<SelectWorldResult>? selectWorldTaskCompletionSource;
 
-    private bool       showSourceWorld = true;
-    private bool       showTargetWorld = true;
-    private bool       isBack;
-    private List<Area> areas = [];
-    private Area?      selectedSourceArea;
-    private Group?     selectedSourceGroup;
-    private Area?      selectedTargetArea;
-    private Group?     selectedTargetGroup;
+    private bool showSourceWorld = true;
+    private bool showTargetWorld = true;
+
+    private bool isBack;
+    
+    private uint   selectedSourceAreaID;
+    private string selectedSourceGroupName = string.Empty;
+    private uint   selectedTargetAreaID;
+    private string selectedTargetGroupName = string.Empty;
 
     public override void OnClose()
     {
@@ -61,9 +61,9 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                 {
                     if (child)
                     {
-                        foreach (var area in areas)
+                        foreach (var (_, (area, _)) in DCTravelClient.Areas)
                         {
-                            var selected = selectedSourceArea?.AreaId == area.AreaId;
+                            var selected = selectedSourceAreaID == area.AreaId;
                             var stateText = area.State switch
                             {
                                 0 => "通畅",
@@ -74,8 +74,8 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                             
                             if (ImGui.Selectable($"{area.AreaName} ({stateText})", selected))
                             {
-                                selectedSourceArea  = area;
-                                selectedSourceGroup = null;
+                                selectedSourceAreaID    = (uint)area.AreaId;
+                                selectedSourceGroupName = string.Empty;
                             }
                         }
                     }
@@ -86,14 +86,11 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                 {
                     if (child)
                     {
-                        if (selectedSourceArea != null)
+                        if (selectedSourceAreaID != 0)
                         {
-                            foreach (var group in selectedSourceArea.GroupList)
+                            foreach (var (groupID, group) in DCTravelClient.Areas[selectedSourceAreaID].Groups)
                             {
-                                var cached = DCTravelClient.CachedAreas
-                                                           .SelectMany(x => x.GroupList)
-                                                           .FirstOrDefault(x => x.GroupName == group.GroupName);
-                                var queueTime = cached?.QueueTime ?? group.QueueTime ?? -1;
+                                var queueTime  = group.QueueTime ?? -1;
                                 var waitTimeMessage = queueTime switch
                                 {
                                     0    => "即刻完成",
@@ -102,9 +99,9 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                                     _    => $"{queueTime} 分钟"
                                 };
                                 var label    = $"{group.GroupName} ({waitTimeMessage})";
-                                var selected = selectedSourceGroup?.GroupId == group.GroupId;
+                                var selected = selectedSourceGroupName == group.GroupName;
                                 if (ImGui.Selectable(label, selected))
-                                    selectedSourceGroup = group;
+                                    selectedSourceGroupName = group.GroupName;
                             }
                         }
                     }
@@ -129,11 +126,11 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                 {
                     if (child)
                     {
-                        foreach (var area in areas)
+                        foreach (var (_, (area, _)) in DCTravelClient.Areas)
                         {
-                            if (selectedSourceArea?.AreaId == area.AreaId) continue;
+                            if (selectedSourceAreaID == area.AreaId) continue;
                             
-                            var selected = selectedTargetArea?.AreaId == area.AreaId;
+                            var selected = selectedTargetAreaID == area.AreaId;
                             var stateText = area.State switch
                             {
                                 0 => "通畅",
@@ -144,8 +141,8 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                             
                             if (ImGui.Selectable($"{area.AreaName} ({stateText})", selected))
                             {
-                                selectedTargetArea  = area;
-                                selectedTargetGroup = area.GroupList.FirstOrDefault();
+                                selectedTargetAreaID    = (uint)area.AreaId;
+                                selectedTargetGroupName = area.GroupList.FirstOrDefault().GroupName;
                             }
                         }
                     }
@@ -156,9 +153,9 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                 {
                     if (child)
                     {
-                        if (selectedTargetArea != null)
+                        if (selectedTargetAreaID != 0)
                         {
-                            foreach (var group in selectedTargetArea.GroupList)
+                            foreach (var (_, group) in DCTravelClient.Areas[selectedTargetAreaID].Groups)
                             {
                                 var queueTime = group.QueueTime ?? -1;
                                 var waitTimeMessage = queueTime switch
@@ -168,9 +165,9 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                                     _          => $"{queueTime} 分钟"
                                 };
                                 var label    = $"{group.GroupName} ({waitTimeMessage})";
-                                var selected = selectedTargetGroup?.GroupId == group.GroupId;
+                                var selected = selectedTargetGroupName == group.GroupName;
                                 if (ImGui.Selectable(label, selected))
-                                    selectedTargetGroup = group;
+                                    selectedTargetGroupName = group.GroupName;
                             }
                         }
                     }
@@ -205,18 +202,21 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
 
         ImGui.Spacing();
 
-        var disableAction = selectedSourceGroup == null || selectedTargetGroup == null ||
-                            (selectedSourceArea != null && selectedTargetArea != null && selectedSourceArea.AreaId == selectedTargetArea.AreaId);
+        var disableAction = string.IsNullOrEmpty(selectedSourceGroupName) || 
+                            string.IsNullOrEmpty(selectedTargetGroupName) ||
+                            selectedSourceAreaID == selectedTargetAreaID;
         
         using (ImRaii.Disabled(disableAction))
         {
             if (ImGui.Button(isBack ? "返回" : "传送", new(-1, ImGui.GetTextLineHeightWithSpacing() * 1.5f)))
             {
+                
+                
                 selectWorldTaskCompletionSource?.TrySetResult(
                     new SelectWorldResult
                     {
-                        Source = selectedSourceGroup!,
-                        Target = selectedTargetGroup!
+                        Source = selectedSourceGroupName,
+                        Target = selectedTargetGroupName
                     });
                 IsOpen = false;
             }
@@ -230,44 +230,43 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
     }
 
     public Task<SelectWorldResult> OpenTravelWindow(
-        bool       showSource,
-        bool       showTarget,
-        bool       isBackHome,
-        List<Area> areasData,
-        string?    currentDCName    = null,
-        string?    currentWorldCode = null,
-        string?    targetDCName     = null,
-        string?    targetWorldCode  = null)
+        bool    showSource,
+        bool    showTarget,
+        bool    isBackHome,
+        string? currentDCName    = null,
+        string? currentWorldCode = null,
+        string? targetDCName     = null,
+        string? targetWorldCode  = null)
     {
         selectWorldTaskCompletionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        areas           = areasData;
         showSourceWorld = showSource;
         showTargetWorld = showTarget;
         isBack          = isBackHome;
-        selectedSourceArea  = null;
-        selectedSourceGroup = null;
-        selectedTargetArea  = null;
-        selectedTargetGroup = null;
 
-        selectedSourceArea = currentDCName != null
-                                 ? areasData.FirstOrDefault(a => a.AreaName == currentDCName)
-                                 : areasData.FirstOrDefault();
-        if (selectedSourceArea != null)
+        selectedSourceAreaID    = 0;
+        selectedTargetAreaID    = 0;
+        selectedSourceGroupName = string.Empty;
+        selectedTargetGroupName = string.Empty;
+
+        selectedSourceAreaID = currentDCName != null
+                                   ? DCTravelClient.Areas.FirstOrDefault(a => a.Value.Area.AreaName == currentDCName).Key
+                                   : DCTravelClient.Areas.FirstOrDefault().Key;
+        if (selectedSourceAreaID != 0)
         {
-            selectedSourceGroup = currentWorldCode != null
-                                      ? selectedSourceArea.GroupList.FirstOrDefault(g => g.GroupCode == currentWorldCode)
-                                      : selectedSourceArea.GroupList.FirstOrDefault();
+            selectedSourceGroupName = currentWorldCode != null
+                                          ? DCTravelClient.Areas[selectedSourceAreaID].Area.GroupList.FirstOrDefault(g => g.GroupCode == currentWorldCode).GroupName
+                                          : DCTravelClient.Areas[selectedSourceAreaID].Area.GroupList.FirstOrDefault().GroupName;
         }
 
-        selectedTargetArea = targetDCName != null
-                                 ? areasData.FirstOrDefault(a => a.AreaName == targetDCName)
-                                 : areasData.FirstOrDefault();
-        if (selectedTargetArea != null)
+        selectedTargetAreaID = targetDCName != null
+                                   ? DCTravelClient.Areas.FirstOrDefault(a => a.Value.Area.AreaName == targetDCName).Key
+                                   : DCTravelClient.Areas.FirstOrDefault().Key;
+        if (selectedTargetAreaID != 0)
         {
-            selectedTargetGroup = targetWorldCode != null
-                                      ? selectedTargetArea.GroupList.FirstOrDefault(g => g.GroupCode == targetWorldCode)
-                                      : selectedTargetArea.GroupList.FirstOrDefault();
+            selectedTargetGroupName = targetWorldCode != null
+                                          ? DCTravelClient.Areas[selectedTargetAreaID].Area.GroupList.FirstOrDefault(g => g.GroupCode == targetWorldCode).GroupName
+                                          : DCTravelClient.Areas[selectedTargetAreaID].Area.GroupList.FirstOrDefault().GroupName;
         }
 
         IsOpen = true;
