@@ -28,4 +28,4 @@ public class SdoArea
 
     // "AreaConfigUpload":"ffxivsdb01.ff14.sdo.com"
     public string AreaConfigUpload { get; set; } = string.Empty;
-} 
+}

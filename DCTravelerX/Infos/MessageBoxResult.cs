@@ -26,4 +26,4 @@ public enum MessageBoxResult
     ///     The "No" button or choice in a message box.
     /// </summary>
     No
-} 
+}

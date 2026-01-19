@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
+using Dalamud.Game.ClientState.Keys;
 using DCTravelerX.Helpers;
 using DCTravelerX.Infos;
 using DCTravelerX.Windows;
@@ -15,11 +16,12 @@ namespace DCTravelerX.Managers;
 
 public static class TravelManager
 {
-    private const int CooldownSeconds = 60;
-    private const int RetryDelaySeconds = 30;
+    private const int COOLDOWN_SECONDS   = 60;
+    private const int RETRY_DELAY_SECONDS = 30;
 
-    internal static readonly SemaphoreSlim TravelSemaphore = new(1, 1);
-    private static           DateTime      lastOrderSendTime = DateTime.MinValue;
+    internal static readonly SemaphoreSlim TravelSemaphore   = new(1, 1);
+
+    private static DateTime LastOrderSendTime = DateTime.MinValue;
 
     private static bool IsOnTravelling;
 
@@ -35,24 +37,32 @@ public static class TravelManager
         [MigrationStatus.Completed]      = "超域旅行完成"
     };
 
-    public static void Travel(
+    public static void Travel
+    (
         int     targetWorldID,
         int     currentWorldID,
         ulong   contentID,
         bool    isBack,
         bool    needSelectCurrentWorld,
         string  currentCharacterName,
-        string? errorMessage = null) =>
-        Task.Run(() => ExecuteTravelFlow(targetWorldID,
-                                         currentWorldID,
-                                         contentID,
-                                         isBack,
-                                         needSelectCurrentWorld,
-                                         currentCharacterName,
-                                         false,
-                                         errorMessage));
+        string? errorMessage = null
+    ) =>
+        Task.Run
+        (() => ExecuteTravelFlow
+         (
+             targetWorldID,
+             currentWorldID,
+             contentID,
+             isBack,
+             needSelectCurrentWorld,
+             currentCharacterName,
+             false,
+             errorMessage
+         )
+        );
 
-    internal static async Task ExecuteTravelFlow(
+    internal static async Task ExecuteTravelFlow
+    (
         int     targetWorldID,
         int     currentWorldID,
         ulong   contentID,
@@ -60,11 +70,13 @@ public static class TravelManager
         bool    needSelectCurrentWorld,
         string  currentCharacterName,
         bool    isIPCCall,
-        string? errorMessage = null)
+        string? errorMessage = null
+    )
     {
         await TravelSemaphore.WaitAsync();
 
         var withAnyException = false;
+
         try
         {
             IsOnTravelling = true;
@@ -88,31 +100,36 @@ public static class TravelManager
             try
             {
                 var (currentWorld, currentDCName, currentGroup) = GetSourceContext(currentWorldID);
-                
-                var (targetDCGroupName, targetGroup, enableRetry, retryCount, shouldContinue) = await PrepareOrderContext(
-                                                       isBack,
-                                                       targetWorldID,
-                                                       contentID,
-                                                       currentGroup,
-                                                       currentDCName,
-                                                       currentWorld,
-                                                       isIPCCall,
-                                                       title,
-                                                       needSelectCurrentWorld);
+
+                var (targetDCGroupName, targetGroup, enableRetry, retryCount, shouldContinue) = await PrepareOrderContext
+                                                                                                (
+                                                                                                    isBack,
+                                                                                                    targetWorldID,
+                                                                                                    contentID,
+                                                                                                    currentGroup,
+                                                                                                    currentDCName,
+                                                                                                    currentWorld,
+                                                                                                    isIPCCall,
+                                                                                                    title,
+                                                                                                    needSelectCurrentWorld
+                                                                                                );
 
                 if (!shouldContinue)
                     return;
-                
-                await ExecuteOrderWithRetry(targetDCGroupName,
-                                            targetGroup,
-                                            enableRetry,
-                                            retryCount,
-                                            isIPCCall,
-                                            isBack,
-                                            targetWorldID,
-                                            contentID,
-                                            currentGroup,
-                                            currentCharacterName);
+
+                await ExecuteOrderWithRetry
+                (
+                    targetDCGroupName,
+                    targetGroup,
+                    enableRetry,
+                    retryCount,
+                    isIPCCall,
+                    isBack,
+                    targetWorldID,
+                    contentID,
+                    currentGroup,
+                    currentCharacterName
+                );
             }
             catch (Exception ex)
             {
@@ -125,7 +142,7 @@ public static class TravelManager
             {
                 CleanupAfterTravel(withAnyException);
             }
-        } 
+        }
         finally
         {
             TravelSemaphore.Release();
@@ -135,6 +152,7 @@ public static class TravelManager
     private static async Task PrepareForTravel()
     {
         var isQueryingBefore = false;
+
         while (DCTravelClient.Instance().IsUpdatingAllQueryTime)
         {
             isQueryingBefore = true;
@@ -150,17 +168,19 @@ public static class TravelManager
 
     private static async Task ApplyCooldownBeforeSendingOrder()
     {
-        var timeSinceLastOrder = DateTime.UtcNow - lastOrderSendTime;
-        if (timeSinceLastOrder < TimeSpan.FromSeconds(CooldownSeconds))
+        var timeSinceLastOrder = DateTime.UtcNow - LastOrderSendTime;
+
+        if (timeSinceLastOrder < TimeSpan.FromSeconds(COOLDOWN_SECONDS))
         {
-            var delay = TimeSpan.FromSeconds(CooldownSeconds) - timeSinceLastOrder;
+            var delay = TimeSpan.FromSeconds(COOLDOWN_SECONDS) - timeSinceLastOrder;
             Service.Log.Info($"下单请求过于频繁, 等待 {delay.TotalSeconds} 秒");
 
             var waitStart = DateTime.UtcNow;
+
             while (DateTime.UtcNow - waitStart < delay)
             {
                 var remaining = delay - (DateTime.UtcNow - waitStart);
-                var message = $"下单请求过于频繁\n等待 {remaining.TotalSeconds:F0} 秒后自动继续……";
+                var message   = $"下单请求过于频繁\n等待 {remaining.TotalSeconds:F0} 秒后自动继续……";
                 await Service.Framework.RunOnFrameworkThread(() => GameFunctions.OpenWaitAddon(message));
                 await Service.Framework.RunOnFrameworkThread(() => GameFunctions.UpdateWaitAddon(message));
                 await Task.Delay(500);
@@ -169,7 +189,7 @@ public static class TravelManager
             await Service.Framework.RunOnFrameworkThread(GameFunctions.CloseWaitAddon);
         }
 
-        lastOrderSendTime = DateTime.UtcNow;
+        LastOrderSendTime = DateTime.UtcNow;
     }
 
     private static (World currentWorld, string currentDCName, Group currentGroup) GetSourceContext(int currentWorldID)
@@ -177,7 +197,7 @@ public static class TravelManager
         if (!Service.DataManager.GetExcelSheet<World>().TryGetRow((uint)currentWorldID, out var currentWorld) ||
             !DCTravelClient.WorldNameToAreaID.TryGetValue(currentWorld.Name.ToString(), out var areaID))
             throw new Exception("无法获取当前服务器具体信息数据");
-        
+
         var currentDCName = currentWorld.DataCenter.Value.Name.ExtractText();
         var foundGroup    = DCTravelClient.Areas[areaID].Groups[currentWorld.Name.ToString()];
         if (foundGroup == null)
@@ -201,13 +221,11 @@ public static class TravelManager
         await instance.QueryAllTravelTime();
 
         if (Service.DataManager.GetExcelSheet<World>().TryGetRow((uint)targetWorldId, out var targetWorld) &&
-            DCTravelClient.WorldNameToAreaID.TryGetValue(targetWorld.Name.ToString(), out var areaId) &&
-            DCTravelClient.Areas.TryGetValue(areaId, out var areaData) &&
-            areaData.Groups.TryGetValue(targetWorld.Name.ToString(), out var group) &&
+            DCTravelClient.WorldNameToAreaID.TryGetValue(targetWorld.Name.ToString(), out var areaId)      &&
+            DCTravelClient.Areas.TryGetValue(areaId, out var areaData)                                     &&
+            areaData.Groups.TryGetValue(targetWorld.Name.ToString(), out var group)                        &&
             group != null)
-        {
             return group;
-        }
 
         if (fallbackGroup != null)
             return fallbackGroup;
@@ -218,7 +236,8 @@ public static class TravelManager
         throw new Exception("非 IPC 调用时必须提供目标组信息");
     }
 
-    private static async Task<(string targetDCGroupName, Group? targetGroup, bool enableRetry, int retryCount, bool shouldContinue)> PrepareOrderContext(
+    private static async Task<(string targetDCGroupName, Group? targetGroup, bool enableRetry, int retryCount, bool shouldContinue)> PrepareOrderContext
+    (
         bool   isBack,
         int    targetWorldID,
         ulong  contentID,
@@ -227,7 +246,8 @@ public static class TravelManager
         World  currentWorld,
         bool   isIPCCall,
         string title,
-        bool   needSelectCurrentWorld)
+        bool   needSelectCurrentWorld
+    )
     {
         var instance = DCTravelClient.Instance();
 
@@ -241,13 +261,16 @@ public static class TravelManager
             if (needSelectCurrentWorld && !isIPCCall)
             {
                 var result = await WindowManager.Get<WorldSelectorWindows>()
-                                                     .OpenTravelWindow(true,
-                                                                       false,
-                                                                       true,
-                                                                       currentDCName,
-                                                                       sourceGroup.GroupCode,
-                                                                       targetDCGroupName,
-                                                                       currentWorld.Name.ExtractText());
+                                                .OpenTravelWindow
+                                                (
+                                                    true,
+                                                    false,
+                                                    true,
+                                                    currentDCName,
+                                                    sourceGroup.GroupCode,
+                                                    targetDCGroupName,
+                                                    currentWorld.Name.ExtractText()
+                                                );
                 if (result == null ||
                     DCTravelClient.Areas.SelectMany(x => x.Value.Groups.Values).FirstOrDefault(x => x.GroupName == result.Source) is not { } sourceGroupData)
                     return (string.Empty, null, false, 0, false);
@@ -276,9 +299,7 @@ public static class TravelManager
             {
                 if (Service.DataManager.GetExcelSheet<World>().TryGetRow((uint)targetWorldID, out var targetWorldRow) &&
                     DCTravelClient.WorldNameToAreaID.TryGetValue(targetWorldRow.Name.ToString(), out var areaID))
-                {
                     targetGroup = DCTravelClient.Areas[areaID].Groups[targetWorldRow.Name.ToString()];
-                }
 
                 if (targetGroup == null || targetGroup.GroupID == 0)
                     throw new Exception($"[IPC] 无法找到目标服务器 {targetWorldID} 的信息。");
@@ -286,7 +307,8 @@ public static class TravelManager
             else
             {
                 var result = await WindowManager.Get<WorldSelectorWindows>()
-                                                        .OpenTravelWindow(false, true, false, currentDCName, currentWorld.InternalName.ToString());
+                                                .OpenTravelWindow(false, true, false, currentDCName, currentWorld.InternalName.ToString());
+
                 if (result == null ||
                     DCTravelClient.Areas.SelectMany(x => x.Value.Groups.Values).FirstOrDefault(x => x.GroupName == result.Target) is not { } targetGroupData)
                 {
@@ -313,6 +335,7 @@ public static class TravelManager
             if (!isIPCCall)
             {
                 var costMsgBox = await MessageBoxWindow.Show(WindowManager.WindowSystem, title, $"超域传送状态: {waitTimeMessage}", MessageBoxType.YesNo);
+
                 if (costMsgBox != MessageBoxResult.Yes)
                 {
                     Service.Log.Info("取消传送");
@@ -324,13 +347,14 @@ public static class TravelManager
             await Service.Framework.RunOnFrameworkThread(() => GameFunctions.OpenWaitAddon($"正在前往目标大区: {targetDCGroupName}\n预计需要等待: {waitTimeMessage}"));
 
             var enableRetry = Service.Config.EnableAutoRetry;
-            var retryCount = Service.Config.MaxRetryCount;
+            var retryCount  = Service.Config.MaxRetryCount;
 
             return (targetDCGroupName, targetGroup, enableRetry, retryCount, true);
         }
     }
 
-    private static async Task ExecuteOrderWithRetry(
+    private static async Task ExecuteOrderWithRetry
+    (
         string targetDCGroupName,
         Group? targetGroup,
         bool   enableRetry,
@@ -340,18 +364,19 @@ public static class TravelManager
         int    targetWorldID,
         ulong  contentId,
         Group  currentGroup,
-        string currentCharacterName)
+        string currentCharacterName
+    )
     {
         if (isIPCCall || isBack)
             enableRetry = false;
 
-        var retryCount = 0;
+        var        retryCount    = 0;
         Exception? lastException = null;
-        var userCancelled = false;
+        var        userCancelled = false;
 
         while (retryCount <= maxRetries)
         {
-            if (enableRetry && Service.KeyState[Dalamud.Game.ClientState.Keys.VirtualKey.SHIFT])
+            if (enableRetry && Service.KeyState[VirtualKey.SHIFT])
             {
                 Service.Log.Info("检测到 Shift 键按下，等待当前订单完成后取消");
                 userCancelled = true;
@@ -364,7 +389,7 @@ public static class TravelManager
                 if (isBack)
                 {
                     await ApplyCooldownBeforeSendingOrder();
-                    var order = await GetTravelingOrder(contentId);
+                    var order    = await GetTravelingOrder(contentId);
                     var instance = DCTravelClient.Instance();
                     currentOrderID = await instance.TravelBack(order.OrderId, currentGroup.GroupID, currentGroup.GroupCode, currentGroup.GroupName);
                     Service.Log.Information($"返回订单号: {currentOrderID}");
@@ -373,11 +398,15 @@ public static class TravelManager
                 {
                     targetGroup = await RefreshTargetGroup(targetWorldID, targetGroup, isIPCCall);
 
-                    var waitTime = targetGroup.QueueTime ?? 0;
+                    var waitTime        = targetGroup.QueueTime ?? 0;
                     var waitTimeMessage = GetWaitTimeMessage(waitTime);
-                    await Service.Framework.RunOnFrameworkThread(() =>
-                        GameFunctions.UpdateWaitAddon(
-                            $"正在前往目标大区: {targetDCGroupName}\n预计需要等待: {waitTimeMessage}\n准备下单 (尝试 {retryCount + 1}/{maxRetries + 1})"));
+                    await Service.Framework.RunOnFrameworkThread
+                    (() =>
+                         GameFunctions.UpdateWaitAddon
+                         (
+                             $"正在前往目标大区: {targetDCGroupName}\n预计需要等待: {waitTimeMessage}\n准备下单 (尝试 {retryCount + 1}/{maxRetries + 1})"
+                         )
+                    );
 
                     if (waitTime == -999)
                         throw new Exception("目标服务器繁忙, 禁止通行");
@@ -399,9 +428,7 @@ public static class TravelManager
                 Service.Log.Info($"异常消息: {ex.Message}");
 
                 if (userCancelled)
-                {
                     throw new Exception("取消了传送操作");
-                }
 
                 if (!enableRetry || retryCount >= maxRetries)
                 {
@@ -426,14 +453,15 @@ public static class TravelManager
                 if (retryCount > maxRetries)
                     break;
 
-                var retryDelay = TimeSpan.FromSeconds(RetryDelaySeconds);
-                var waitStart = DateTime.UtcNow;
+                var     retryDelay            = TimeSpan.FromSeconds(RETRY_DELAY_SECONDS);
+                var     waitStart             = DateTime.UtcNow;
                 string? latestWaitTimeMessage = null;
+
                 try
                 {
                     var refreshedGroup = await RefreshTargetGroup(targetWorldID, targetGroup, isIPCCall);
                     latestWaitTimeMessage = GetWaitTimeMessage(refreshedGroup.QueueTime ?? 0);
-                    targetGroup = refreshedGroup;
+                    targetGroup           = refreshedGroup;
                 }
                 catch
                 {
@@ -442,14 +470,12 @@ public static class TravelManager
 
                 while (DateTime.UtcNow - waitStart < retryDelay)
                 {
-                    if (Service.KeyState[Dalamud.Game.ClientState.Keys.VirtualKey.SHIFT])
-                    {
+                    if (Service.KeyState[VirtualKey.SHIFT])
                         throw new Exception("取消了传送操作");
-                    }
 
-                    var remaining = retryDelay - (DateTime.UtcNow - waitStart);
-                    var errorMsg = ExtractErrorMessage(ex);
-                    var statusLine = latestWaitTimeMessage == null ? string.Empty : $"\n目标服务器状态: {latestWaitTimeMessage}";
+                    var remaining    = retryDelay - (DateTime.UtcNow - waitStart);
+                    var errorMsg     = ExtractErrorMessage(ex);
+                    var statusLine   = latestWaitTimeMessage == null ? string.Empty : $"\n目标服务器状态: {latestWaitTimeMessage}";
                     var waitAddonMsg = $"错误: {errorMsg}{statusLine}\n第 {retryCount}/{maxRetries} 次重试 / 等待 {remaining.TotalSeconds:F0} 秒后重试 (按住 Shift 取消传送)";
                     await Service.Framework.RunOnFrameworkThread(() => GameFunctions.UpdateWaitAddon(waitAddonMsg.Trim()));
                     await Task.Delay(1000);
@@ -482,7 +508,8 @@ public static class TravelManager
         var message = ex.Message;
 
         var messagePrefix = "message:";
-        var messageIndex = message.IndexOf(messagePrefix, StringComparison.OrdinalIgnoreCase);
+        var messageIndex  = message.IndexOf(messagePrefix, StringComparison.OrdinalIgnoreCase);
+
         if (messageIndex >= 0)
         {
             var startIndex = messageIndex + messagePrefix.Length;
@@ -490,16 +517,12 @@ public static class TravelManager
 
             var atIndex = message.IndexOf("\nat ", StringComparison.Ordinal);
             if (atIndex > 0)
-            {
                 message = message[..atIndex].Trim();
-            }
         }
 
         var lines = message.Split(['\n', '\r'], StringSplitOptions.RemoveEmptyEntries);
         if (lines.Length > 0)
-        {
             message = lines[0].Trim();
-        }
 
         if (message.Length > 150)
             message = message[..150] + "...";
@@ -521,16 +544,19 @@ public static class TravelManager
 
     public static async Task<MigrationOrder> GetTravelingOrder(ulong contentId)
     {
-        var contentIdStr = contentId.ToString();
+        var contentIdStr   = contentId.ToString();
         var currentPageNum = 1;
+
         while (true)
         {
             var orders = await DCTravelClient.Instance().QueryMigrationOrders(currentPageNum);
+
             if (orders is not { Orders.Length: > 0 } ||
                 orders.Orders.FirstOrDefault(x => x.ContentId == contentIdStr) is not { } order)
             {
                 var maxPageNum = orders.TotalPageNum;
                 currentPageNum++;
+
                 if (currentPageNum > maxPageNum)
                 {
                     Service.Log.Error($"未能找到返回订单 {contentId}");
@@ -562,12 +588,16 @@ public static class TravelManager
             if (status.Status == MigrationStatus.NeedConfirm)
             {
                 var confirmResult = MessageBoxResult.Ok;
+
                 if (!isIPCCall)
                 {
-                    confirmResult = await MessageBoxWindow.Show(WindowManager.WindowSystem,
-                        "超域旅行确认",
-                        $"是否确认要超域旅行至大区: {targetDCGroupName}",
-                        MessageBoxType.OkCancel);
+                    confirmResult = await MessageBoxWindow.Show
+                                    (
+                                        WindowManager.WindowSystem,
+                                        "超域旅行确认",
+                                        $"是否确认要超域旅行至大区: {targetDCGroupName}",
+                                        MessageBoxType.OkCancel
+                                    );
                 }
 
                 await DCTravelClient.Instance().MigrationConfirmOrder(orderID, confirmResult == MessageBoxResult.Ok);
@@ -583,14 +613,14 @@ public static class TravelManager
 
             await Task.Delay(2000);
         }
-        
+
         await GameFunctions.SelectDCAndLogin(targetDCGroupName, !isIPCCall);
         UIGlobals.PlaySoundEffect(67);
     }
 
     private static void OnAddonTitleLogo(AddonEvent type, AddonArgs args) =>
         GameFunctions.ToggleTitleLogo(false);
-    
-    private static void OnAddonTitleMenu(AddonEvent type, AddonArgs args) => 
+
+    private static void OnAddonTitleMenu(AddonEvent type, AddonArgs args) =>
         GameFunctions.ToggleTitleMenu(false);
 }

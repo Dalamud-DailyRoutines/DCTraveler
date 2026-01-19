@@ -2,100 +2,130 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Game;
 using Dalamud.Interface.GameFonts;
 using Dalamud.Interface.ManagedFontAtlas;
-using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility;
 
 namespace DCTravelerX.Managers;
 
 public class FontManager
 {
-    private static readonly Lazy<IFontAtlas> FontAtlasLazy = 
+    private static readonly Lazy<IFontAtlas> FontAtlasLazy =
         new(() => Service.PI.UiBuilder.CreateFontAtlas(FontAtlasAutoRebuildMode.Disable));
 
-    public static unsafe ushort[] DefaultFontRange { get; } =
-        BuildRange(null, 
-                   ImGui.GetIO().Fonts.GetGlyphRangesChineseFull(),
-                   ImGui.GetIO().Fonts.GetGlyphRangesJapanese(),
-                   ImGui.GetIO().Fonts.GetGlyphRangesKorean(),
-                   ImGui.GetIO().Fonts.GetGlyphRangesDefault());
-
-    private static readonly Lazy<IFontHandle> DefaultFontLazy = 
+    private static readonly Lazy<IFontHandle> DefaultFontLazy =
         new(() => FontAtlas.NewGameFontHandle(new(GameFontFamilyAndSize.Axis18)));
 
-    private static IFontHandle? uiFont;
-    
-    public static IFontAtlas FontAtlas => FontAtlasLazy.Value;
-    
-    public static IFontHandle UIFont => uiFont ?? DefaultFontLazy.Value;
-    
-    private static string DefaultFontPath => Path.Join(Service.PI.DalamudAssetDirectory.FullName, "UIRes",
-                                                       Service.ClientState.ClientLanguage == (ClientLanguage)4 ? 
-                                                           "NotoSansCJKsc-Medium.otf" : "NotoSansCJKjp-Medium.otf");
+    private static IFontHandle? UIFontInternal;
 
-    internal static void Init() => 
-        Task.Run(async () => uiFont = await CreateFontHandleAsync(21f));
+    public static unsafe ushort[] DefaultFontRange { get; } =
+        BuildRange
+        (
+            null,
+            ImGui.GetIO().Fonts.GetGlyphRangesChineseFull(),
+            ImGui.GetIO().Fonts.GetGlyphRangesJapanese(),
+            ImGui.GetIO().Fonts.GetGlyphRangesKorean(),
+            ImGui.GetIO().Fonts.GetGlyphRangesDefault()
+        );
+
+    public static IFontAtlas FontAtlas => FontAtlasLazy.Value;
+
+    public static IFontHandle UIFont => UIFontInternal ?? DefaultFontLazy.Value;
+
+    private static string DefaultFontPath => Path.Join
+    (
+        Service.PI.DalamudAssetDirectory.FullName,
+        "UIRes",
+        Service.ClientState.ClientLanguage == (ClientLanguage)4 ? "NotoSansCJKsc-Medium.otf" : "NotoSansCJKjp-Medium.otf"
+    );
+
+    internal static void Init() =>
+        Task.Run(async () => UIFontInternal = await CreateFontHandleAsync(21f));
 
     private static async Task<IFontHandle> CreateFontHandleAsync(float size)
     {
-        var fontPath = DefaultFontPath;
+        var         fontPath = DefaultFontPath;
         IFontHandle handle;
 
         if (!File.Exists(fontPath))
         {
-            handle = FontAtlas.NewDelegateFontHandle(e =>
-            {
-                e.OnPreBuild(tk =>
+            handle = FontAtlas.NewDelegateFontHandle
+            (e =>
                 {
-                    var fileFontPtr = tk.AddDalamudDefaultFont(size, DefaultFontRange);
+                    e.OnPreBuild
+                    (tk =>
+                        {
+                            var fileFontPtr = tk.AddDalamudDefaultFont(size, DefaultFontRange);
 
-                    var mixedFontPtr0 = tk.AddGameSymbol(new()
-                    {
-                        SizePx     = size,
-                        PixelSnapH = true,
-                        MergeFont  = fileFontPtr,
-                    });
+                            var mixedFontPtr0 = tk.AddGameSymbol
+                            (
+                                new()
+                                {
+                                    SizePx     = size,
+                                    PixelSnapH = true,
+                                    MergeFont  = fileFontPtr
+                                }
+                            );
 
-                    tk.AddFontAwesomeIconFont(new()
-                    {
-                        SizePx     = size,
-                        PixelSnapH = true,
-                        MergeFont  = mixedFontPtr0,
-                    });
-                });
-            });
+                            tk.AddFontAwesomeIconFont
+                            (
+                                new()
+                                {
+                                    SizePx     = size,
+                                    PixelSnapH = true,
+                                    MergeFont  = mixedFontPtr0
+                                }
+                            );
+                        }
+                    );
+                }
+            );
         }
         else
         {
-            handle = FontAtlas.NewDelegateFontHandle(e =>
-            {
-                e.OnPreBuild(tk =>
+            handle = FontAtlas.NewDelegateFontHandle
+            (e =>
                 {
-                    var fileFontPtr = tk.AddFontFromFile(fontPath, new()
-                    {
-                        SizePx      = size,
-                        PixelSnapH  = true,
-                        GlyphRanges = DefaultFontRange,
-                        FontNo      = 0,
-                    });
+                    e.OnPreBuild
+                    (tk =>
+                        {
+                            var fileFontPtr = tk.AddFontFromFile
+                            (
+                                fontPath,
+                                new()
+                                {
+                                    SizePx      = size,
+                                    PixelSnapH  = true,
+                                    GlyphRanges = DefaultFontRange,
+                                    FontNo      = 0
+                                }
+                            );
 
-                    var mixedFontPtr0 = tk.AddGameSymbol(new()
-                    {
-                        SizePx     = size,
-                        PixelSnapH = true,
-                        MergeFont  = fileFontPtr,
-                    });
+                            var mixedFontPtr0 = tk.AddGameSymbol
+                            (
+                                new()
+                                {
+                                    SizePx     = size,
+                                    PixelSnapH = true,
+                                    MergeFont  = fileFontPtr
+                                }
+                            );
 
-                    tk.AddFontAwesomeIconFont(new()
-                    {
-                        SizePx     = size,
-                        PixelSnapH = true,
-                        MergeFont  = mixedFontPtr0,
-                    });
-                });
-            });
+                            tk.AddFontAwesomeIconFont
+                            (
+                                new()
+                                {
+                                    SizePx     = size,
+                                    PixelSnapH = true,
+                                    MergeFont  = mixedFontPtr0
+                                }
+                            );
+                        }
+                    );
+                }
+            );
         }
 
         await FontAtlas.BuildFontsAsync();
@@ -130,8 +160,7 @@ public class FontManager
         builder.AddChar('⓪');
         return builder.BuildRangesToArray();
     }
-    
-    internal static void Uninit() => 
-        uiFont = null;
-}
 
+    internal static void Uninit() =>
+        UIFontInternal = null;
+}

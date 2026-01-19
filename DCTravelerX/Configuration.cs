@@ -1,5 +1,5 @@
-using Dalamud.Configuration;
 using System;
+using Dalamud.Configuration;
 
 namespace DCTravelerX;
 
@@ -7,11 +7,10 @@ namespace DCTravelerX;
 public class Configuration : IPluginConfiguration
 {
     public int Version { get; set; } = 1;
+    
+    public bool EnableAutoRetry { get; set; } = true;
+    public int  MaxRetryCount   { get; set; } = 1000;
 
-    public bool EnableAutoRetry   { get; set; } = true;
-    public int  MaxRetryCount     { get; set; } = 20;
-    public int  RetryDelaySeconds { get; set; } = 30;
-
-    public void Save() => 
+    public void Save() =>
         Service.PI.SavePluginConfig(this);
 }

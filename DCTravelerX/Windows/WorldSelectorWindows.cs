@@ -1,29 +1,28 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using Dalamud.Interface.Utility.Raii;
-using Dalamud.Interface.Windowing;
-using DCTravelerX.Helpers;
-using DCTravelerX.Infos;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility;
-using DCTravelerX.Managers;
+using Dalamud.Interface.Utility.Raii;
+using Dalamud.Interface.Windowing;
+using DCTravelerX.Infos;
 
 namespace DCTravelerX.Windows;
 
 internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.AlwaysAutoResize), IDisposable
 {
+    private bool isBack;
+
+    private uint                                     selectedSourceAreaID;
+    private string                                   selectedSourceGroupName = string.Empty;
+    private uint                                     selectedTargetAreaID;
+    private string                                   selectedTargetGroupName = string.Empty;
     private TaskCompletionSource<SelectWorldResult>? selectWorldTaskCompletionSource;
 
     private bool showSourceWorld = true;
     private bool showTargetWorld = true;
 
-    private bool isBack;
-    
-    private uint   selectedSourceAreaID;
-    private string selectedSourceGroupName = string.Empty;
-    private uint   selectedTargetAreaID;
-    private string selectedTargetGroupName = string.Empty;
+    public void Dispose() { }
 
     public override void OnClose()
     {
@@ -43,20 +42,22 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
     {
         var columnWidth = ImGui.CalcTextSize("一二三四五六七八九十").X   * 2;
         var childHeight = ImGui.GetTextLineHeightWithSpacing() * (int)(8 * ImGuiHelpers.GlobalScale);
-        
+
         if (showSourceWorld)
         {
             using var table = ImRaii.Table("##TableCurrent", 2, ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersInnerV);
+
             if (table)
             {
                 ImGui.TableSetupColumn("当前大区",  ImGuiTableColumnFlags.WidthFixed, columnWidth);
                 ImGui.TableSetupColumn("当前服务器", ImGuiTableColumnFlags.WidthFixed, columnWidth);
-                    
+
                 ImGui.TableHeadersRow();
 
                 ImGui.TableNextRow();
-                    
+
                 ImGui.TableNextColumn();
+
                 using (var child = ImRaii.Child("##SourceDcChild", new(-1f, childHeight)))
                 {
                     if (child)
@@ -68,10 +69,9 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                             {
                                 0 => "通畅",
                                 1 => "热门",
-                                2 => "火爆",
                                 _ => "火爆"
                             };
-                            
+
                             if (ImGui.Selectable($"{area.AreaName} ({stateText})", selected))
                             {
                                 selectedSourceAreaID    = (uint)area.AreaId;
@@ -80,17 +80,18 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                         }
                     }
                 }
-                    
+
                 ImGui.TableNextColumn();
+
                 using (var child = ImRaii.Child("##SourceServerChild", new(-1f, childHeight)))
                 {
                     if (child)
                     {
                         if (selectedSourceAreaID != 0)
                         {
-                            foreach (var (groupID, group) in DCTravelClient.Areas[selectedSourceAreaID].Groups)
+                            foreach (var (_, group) in DCTravelClient.Areas[selectedSourceAreaID].Groups)
                             {
-                                var queueTime  = group.QueueTime ?? -1;
+                                var queueTime = group.QueueTime ?? -1;
                                 var waitTimeMessage = queueTime switch
                                 {
                                     0    => "即刻完成",
@@ -112,16 +113,18 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
         if (showTargetWorld)
         {
             using var table = ImRaii.Table("##TableCurrent", 2, ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersInnerV);
+
             if (table)
             {
                 ImGui.TableSetupColumn("目标大区",  ImGuiTableColumnFlags.WidthFixed, columnWidth);
                 ImGui.TableSetupColumn("目标服务器", ImGuiTableColumnFlags.WidthFixed, columnWidth);
-                    
+
                 ImGui.TableHeadersRow();
 
                 ImGui.TableNextRow();
-                    
+
                 ImGui.TableNextColumn();
+
                 using (var child = ImRaii.Child("##TargetDcChild", new(-1f, childHeight)))
                 {
                     if (child)
@@ -129,16 +132,15 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                         foreach (var (_, (area, _)) in DCTravelClient.Areas)
                         {
                             if (selectedSourceAreaID == area.AreaId) continue;
-                            
+
                             var selected = selectedTargetAreaID == area.AreaId;
                             var stateText = area.State switch
                             {
                                 0 => "通畅",
                                 1 => "热门",
-                                2 => "火爆",
                                 _ => "火爆"
                             };
-                            
+
                             if (ImGui.Selectable($"{area.AreaName} ({stateText})", selected))
                             {
                                 selectedTargetAreaID    = (uint)area.AreaId;
@@ -147,8 +149,9 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
                         }
                     }
                 }
-                    
+
                 ImGui.TableNextColumn();
+
                 using (var child = ImRaii.Child("##TargetServerChild", new(-1f, childHeight)))
                 {
                     if (child)
@@ -178,6 +181,7 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
         ImGui.Spacing();
 
         var enableRetry = Service.Config.EnableAutoRetry;
+
         if (ImGui.Checkbox("跨区失败时自动重试", ref enableRetry))
         {
             Service.Config.EnableAutoRetry = enableRetry;
@@ -187,8 +191,8 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
         if (enableRetry)
         {
             var retryCount = Service.Config.MaxRetryCount;
-            
-            ImGui.SameLine(0, 10f * ImGuiHelpers.GlobalScale);
+
+            ImGui.SameLine(0, 10f       * ImGuiHelpers.GlobalScale);
             ImGui.SetNextItemWidth(100f * ImGuiHelpers.GlobalScale);
             if (ImGui.InputInt("最大重试次数", ref retryCount))
                 retryCount = Math.Max(1, retryCount);
@@ -202,22 +206,24 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
 
         ImGui.Spacing();
 
-        var disableAction = string.IsNullOrEmpty(selectedSourceGroupName) || 
+        var disableAction = string.IsNullOrEmpty(selectedSourceGroupName) ||
                             string.IsNullOrEmpty(selectedTargetGroupName) ||
                             selectedSourceAreaID == selectedTargetAreaID;
-        
+
         using (ImRaii.Disabled(disableAction))
         {
             if (ImGui.Button(isBack ? "返回" : "传送", new(-1, ImGui.GetTextLineHeightWithSpacing() * 1.5f)))
             {
-                
-                
-                selectWorldTaskCompletionSource?.TrySetResult(
+
+
+                selectWorldTaskCompletionSource?.TrySetResult
+                (
                     new SelectWorldResult
                     {
                         Source = selectedSourceGroupName,
                         Target = selectedTargetGroupName
-                    });
+                    }
+                );
                 IsOpen = false;
             }
         }
@@ -229,14 +235,16 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
         }
     }
 
-    public Task<SelectWorldResult> OpenTravelWindow(
+    public Task<SelectWorldResult> OpenTravelWindow
+    (
         bool    showSource,
         bool    showTarget,
         bool    isBackHome,
         string? currentDCName    = null,
         string? currentWorldCode = null,
         string? targetDCName     = null,
-        string? targetWorldCode  = null)
+        string? targetWorldCode  = null
+    )
     {
         selectWorldTaskCompletionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -252,6 +260,7 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
         selectedSourceAreaID = currentDCName != null
                                    ? DCTravelClient.Areas.FirstOrDefault(a => a.Value.Area.AreaName == currentDCName).Key
                                    : DCTravelClient.Areas.FirstOrDefault().Key;
+
         if (selectedSourceAreaID != 0)
         {
             selectedSourceGroupName = currentWorldCode != null
@@ -262,6 +271,7 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
         selectedTargetAreaID = targetDCName != null
                                    ? DCTravelClient.Areas.FirstOrDefault(a => a.Value.Area.AreaName == targetDCName).Key
                                    : DCTravelClient.Areas.FirstOrDefault().Key;
+
         if (selectedTargetAreaID != 0)
         {
             selectedTargetGroupName = targetWorldCode != null
@@ -272,6 +282,4 @@ internal class WorldSelectorWindows() : Window("超域旅行", ImGuiWindowFlags.
         IsOpen = true;
         return selectWorldTaskCompletionSource.Task;
     }
-
-    public void Dispose() { }
 }

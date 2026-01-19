@@ -5,17 +5,13 @@ namespace DCTravelerX.Infos;
 
 public class Area
 {
-    [JsonPropertyName("state")]
-    public int State { get; set; }
-    
-    [JsonPropertyName("areaId")]
-    public int AreaId { get; set; }
+    [JsonPropertyName("state")] public int State { get; set; }
 
-    [JsonPropertyName("areaName")]
-    public string AreaName { get; set; }
+    [JsonPropertyName("areaId")] public int AreaId { get; set; }
 
-    [JsonPropertyName("groups")]
-    public List<Group> GroupList { get; set; }
+    [JsonPropertyName("areaName")] public string AreaName { get; set; }
+
+    [JsonPropertyName("groups")] public List<Group> GroupList { get; set; }
 
     public void SetAreaForGroup()
     {
@@ -25,4 +21,4 @@ public class Area
             group.AreaId   = AreaId;
         }
     }
-} 
+}

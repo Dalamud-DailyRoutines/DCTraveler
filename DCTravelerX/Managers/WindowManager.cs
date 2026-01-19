@@ -12,7 +12,7 @@ public class WindowManager
     {
         WindowSystem ??= new WindowSystem("DCTravelerX");
         WindowSystem.RemoveAllWindows();
-        
+
         InternalWindows.Init();
 
         Service.UIBuilder.Draw += DrawWindows;
@@ -21,7 +21,7 @@ public class WindowManager
     private static void DrawWindows()
     {
         using var font = FontManager.UIFont.Push();
-        
+
         WindowSystem?.Draw();
     }
 
@@ -57,9 +57,9 @@ public class WindowManager
     internal static void Uninit()
     {
         Service.UIBuilder.Draw -= DrawWindows;
-        
+
         InternalWindows.Uninit();
-        
+
         WindowSystem?.RemoveAllWindows();
         WindowSystem = null;
     }

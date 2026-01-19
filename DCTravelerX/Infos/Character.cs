@@ -4,11 +4,9 @@ namespace DCTravelerX.Infos;
 
 public class Character
 {
-    [JsonPropertyName("roleId")]
-    public string ContentId { get; set; }
+    [JsonPropertyName("roleId")] public string ContentId { get; set; }
 
-    [JsonPropertyName("roleName")]
-    public string Name { get; set; }
+    [JsonPropertyName("roleName")] public string Name { get; set; }
 
     public int AreaId  { get; set; }
     public int GroupId { get; set; }
@@ -18,4 +16,4 @@ public class Character
         // Shit!
         return $"{{\"roleId\":\"{ContentId}\",\"roleName\":\"{Name}\",\"key\":0}}";
     }
-} 
+}

@@ -1,5 +1,4 @@
 using System;
-using Dalamud.Game;
 using Dalamud.Interface;
 using Dalamud.IoC;
 using Dalamud.Plugin;
@@ -23,7 +22,7 @@ public class Service
     [PluginService] internal static IFramework       Framework       { get; private set; } = null!;
     [PluginService] internal static ITitleScreenMenu TitleScreenMenu { get; private set; } = null!;
     [PluginService] internal static IKeyState        KeyState        { get; private set; } = null!;
-    
+
     internal static IDalamudPluginInterface PI        { get; private set; } = null!;
     internal static IUiBuilder              UIBuilder { get; private set; } = null!;
     internal static Configuration           Config    { get; private set; } = null!;
@@ -56,7 +55,7 @@ public class Service
     public static void Uninit()
     {
         IPCManager.Uninit();
-        DCTravelClient.Instance().IsDisposed = true; 
+        DCTravelClient.Instance().IsDisposed = true;
         ContextMenuManager.Uninit();
         TitleScreenButtonManager.Uninit();
         WindowManager.Uninit();

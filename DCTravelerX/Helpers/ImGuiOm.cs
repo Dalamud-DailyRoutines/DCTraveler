@@ -13,8 +13,11 @@ public static class ImGuiOm
         var colors   = style.Colors;
         var textSize = ImGui.CalcTextSize(text);
 
-        var size = new Vector2(Math.Max(ImGui.GetContentRegionAvail().X, textSize.X + (2 * padding.X)),
-                               textSize.Y + (2 * padding.Y));
+        var size = new Vector2
+        (
+            Math.Max(ImGui.GetContentRegionAvail().X, textSize.X + 2 * padding.X),
+            textSize.Y + 2 * padding.Y
+        );
 
         ImGui.PushStyleColor(ImGuiCol.ButtonActive,  colors[(int)ImGuiCol.HeaderActive]);
         ImGui.PushStyleColor(ImGuiCol.ButtonHovered, colors[(int)ImGuiCol.HeaderHovered]);

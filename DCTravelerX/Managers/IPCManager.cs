@@ -29,7 +29,7 @@ public static class IPCManager
     }
 
     // 是否正常连接超域旅行 API
-    private static bool IsValid() => 
+    private static bool IsValid() =>
         DCTravelClient.IsValid && DCTravelClient.Areas is { Count: > 0 };
 
     private static async Task<bool> SelectDCAndLogin(string name)
@@ -68,7 +68,7 @@ public static class IPCManager
         while (true)
         {
             var status = await DCTravelClient.Instance().QueryOrderStatus(orderID);
-            
+
             switch (status.Status)
             {
                 case MigrationStatus.Completed:
@@ -85,7 +85,7 @@ public static class IPCManager
             if (status.Status is not (MigrationStatus.InPrepare0 or MigrationStatus.InPrepare1 or
                 MigrationStatus.Processing3 or MigrationStatus.Processing4))
                 continue;
-            
+
             await Task.Delay(2000);
         }
     }
@@ -94,9 +94,9 @@ public static class IPCManager
     private static int GetWaitTime(uint worldID)
     {
         if (!Service.DataManager.GetExcelSheet<World>().TryGetRow(worldID, out var worldRow) ||
-            !DCTravelClient.WorldNameToAreaID.TryGetValue(worldRow.Name.ToString(), out var areaID)) 
+            !DCTravelClient.WorldNameToAreaID.TryGetValue(worldRow.Name.ToString(), out var areaID))
             return -1;
-        
+
         var foundGroup = DCTravelClient.Areas[areaID].Groups[worldRow.Name.ToString()];
         return foundGroup.QueueTime ?? -1;
     }

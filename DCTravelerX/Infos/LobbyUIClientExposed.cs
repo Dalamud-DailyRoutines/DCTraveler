@@ -10,4 +10,4 @@ public struct LobbyUIClientExposed
 
     [FieldOffset(0x158)]
     public byte State;
-} 
+}
