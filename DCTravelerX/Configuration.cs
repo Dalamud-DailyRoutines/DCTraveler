@@ -10,7 +10,7 @@ public class Configuration : IPluginConfiguration
 
     public bool EnableAutoRetry   { get; set; } = true;
     public int  MaxRetryCount     { get; set; } = 20;
-    public int  RetryDelaySeconds { get; set; } = 60;
+    public int  RetryDelaySeconds { get; set; } = 30;
 
     public void Save() => 
         Service.PI.SavePluginConfig(this);
