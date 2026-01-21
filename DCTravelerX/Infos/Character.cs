@@ -18,4 +18,4 @@ public class Character
         // Shit!
         return $"{{\"roleId\":\"{ContentId}\",\"roleName\":\"{Name}\",\"key\":0}}";
     }
-} 
+}

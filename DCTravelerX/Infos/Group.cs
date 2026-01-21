@@ -21,4 +21,4 @@ public class Group
 
     [JsonPropertyName("groupCode")]
     public string GroupCode { get; set; }
-} 
+}
