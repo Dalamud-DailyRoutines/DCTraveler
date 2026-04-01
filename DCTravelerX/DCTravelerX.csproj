@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<Project Sdk="Dalamud.CN.NET.Sdk/14.0.0">
+<Project Sdk="Dalamud.CN.NET.Sdk/14.0.2">
 
     <PropertyGroup>
         <Version>0.2.6.0</Version>
@@ -8,9 +8,7 @@
         <Authors>Loskh</Authors>
         <PackageProjectUrl>https://github.com/Dalamud-DailyRoutines/DCTraveler</PackageProjectUrl>
         <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
-        <IsPackable>false</IsPackable>
         <BaseOutputPath>$(SolutionDir)bin</BaseOutputPath>
-        <UseWPF>true</UseWPF>
         <NoWarn>1701;1702;CS0414;CS8601;CS8602;CS8604;CS8603;IDE1006;IDE0300;MSB3270;MSB324;CS0649;CS8714;CS8618</NoWarn>
     </PropertyGroup>
 
@@ -19,9 +17,5 @@
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
     </ItemGroup>
-
-    <PropertyGroup Condition="'$(Configuration)'=='Release'">
-        <MakeZIP>true</MakeZIP>
-    </PropertyGroup>
 
 </Project>
