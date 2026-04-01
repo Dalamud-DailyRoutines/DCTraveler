@@ -138,11 +138,13 @@ public static class TravelManager
                 Service.Log.Error(ex, "跨大区失败");
 
                 withAnyException = true;
-            } finally
+            }
+            finally
             {
                 CleanupAfterTravel(withAnyException);
             }
-        } finally
+        }
+        finally
         {
             TravelSemaphore.Release();
         }

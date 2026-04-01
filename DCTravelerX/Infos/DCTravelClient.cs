@@ -12,13 +12,13 @@ namespace DCTravelerX.Infos;
 
 internal class DCTravelClient
 {
-    private readonly string APIURL;
+    private readonly string apiURL;
 
     private DCTravelClient(int port, bool useEncrypt = true)
     {
-        APIURL = $"http://127.0.0.1:{port}/dctravel/";
+        apiURL = $"http://127.0.0.1:{port}/dctravel/";
 
-        httpClient = new HttpClient();
+        HTTPClient = new HttpClient();
         Task.Run
         (async () =>
             {
@@ -33,7 +33,7 @@ internal class DCTravelClient
         );
     }
 
-    private static DCTravelClient? instance { get; set; }
+    private static DCTravelClient? InstanceInternal { get; set; }
 
     public static Dictionary<uint, (Area Area, Dictionary<string, Group> Groups)> Areas             { get; } = [];
     public static Dictionary<string, uint>                                        WorldNameToAreaID { get; } = [];
@@ -44,13 +44,13 @@ internal class DCTravelClient
 
     public bool IsUpdatingAllQueryTime { get; private set; }
 
-    private HttpClient httpClient { get; init; }
+    private HttpClient HTTPClient { get; init; }
 
     public static DCTravelClient Instance(int port = 0)
     {
-        if (instance != null) return instance;
+        if (InstanceInternal != null) return InstanceInternal;
 
-        return instance ??= new(port);
+        return InstanceInternal ??= new(port);
     }
 
     internal static void UpdateAreasData(List<Area> areas)
@@ -100,20 +100,21 @@ internal class DCTravelClient
 
             var areas = await QueryGroupListTravelTarget(9, 5);
             UpdateAreasData(areas);
-        } finally
+        }
+        finally
         {
             IsUpdatingAllQueryTime = false;
         }
     }
 
-    public async Task<T> RequestApi<T>(object[] objs, [CallerMemberName] string? method = null)
+    public async Task<T> RequestAPI<T>(object[] objs, [CallerMemberName] string? method = null)
     {
         var rpcRequest  = new RpcRequest { Method = method!, Params = objs };
         var jsonPayload = JsonSerializer.Serialize(rpcRequest);
         Service.Log.Debug($"请求 API: {jsonPayload}");
 
-        var request  = new HttpRequestMessage(HttpMethod.Post, APIURL) { Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json") };
-        var response = await httpClient.SendAsync(request);
+        var request  = new HttpRequestMessage(HttpMethod.Post, apiURL) { Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json") };
+        var response = await HTTPClient.SendAsync(request);
         response.EnsureSuccessStatusCode();
 
         var content = await response.Content.ReadAsStringAsync();
@@ -135,13 +136,13 @@ internal class DCTravelClient
     }
 
     public async Task<List<Area>> QueryGroupListTravelSource() =>
-        await RequestApi<List<Area>>([]);
+        await RequestAPI<List<Area>>([]);
 
     public async Task<List<Area>> QueryGroupListTravelTarget(int areaID, int groupID) =>
-        await RequestApi<List<Area>>([areaID, groupID]);
+        await RequestAPI<List<Area>>([areaID, groupID]);
 
     public async Task<List<Character>> QueryRoleList(int areaId, int groupId) =>
-        await RequestApi<List<Character>>([areaId, groupId]);
+        await RequestAPI<List<Character>>([areaId, groupId]);
 
     public async Task<int> QueryTravelQueueTime(int areaID, int groupID)
     {
@@ -163,22 +164,22 @@ internal class DCTravelClient
     }
 
     public async Task<string> TravelOrder(Group targetGroup, Group sourceGroup, Character character) =>
-        await RequestApi<string>([targetGroup, sourceGroup, character]);
+        await RequestAPI<string>([targetGroup, sourceGroup, character]);
 
     public async Task<OrderStatus> QueryOrderStatus(string orderId) =>
-        await RequestApi<OrderStatus>([orderId]);
+        await RequestAPI<OrderStatus>([orderId]);
 
     public async Task<MigrationOrders> QueryMigrationOrders(int pageIndex = 1) =>
-        await RequestApi<MigrationOrders>([pageIndex]);
+        await RequestAPI<MigrationOrders>([pageIndex]);
 
     public async Task<string> TravelBack(string orderId, int currentGroupId, string currentGroupCode, string currentGroupName) =>
-        await RequestApi<string>([orderId, currentGroupId, currentGroupCode, currentGroupName]);
+        await RequestAPI<string>([orderId, currentGroupId, currentGroupCode, currentGroupName]);
 
     public async Task<string> RefreshGameSessionId() =>
-        await RequestApi<string>([]);
+        await RequestAPI<string>([]);
 
     public async Task MigrationConfirmOrder(string orderId, bool confirmed) =>
-        await RequestApi<string>([orderId, confirmed]);
+        await RequestAPI<string>([orderId, confirmed]);
 
-    public async Task SetSdoArea(string name) => await RequestApi<string>([name]);
+    public async Task SetSdoArea(string name) => await RequestAPI<string>([name]);
 }
