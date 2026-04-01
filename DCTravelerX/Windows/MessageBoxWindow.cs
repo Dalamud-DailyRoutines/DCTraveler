@@ -55,7 +55,7 @@ internal class MessageBoxWindow : Window, IDisposable
 
     public static Task<MessageBoxResult> Show
     (
-        WindowSystem   WindowSystem,
+        WindowSystem   windowSystem,
         string         title,
         string         message,
         MessageBoxType type        = MessageBoxType.Ok,
@@ -63,16 +63,16 @@ internal class MessageBoxWindow : Window, IDisposable
     )
     {
         var              guid = Guid.NewGuid();
-        MessageBoxWindow box  = new(WindowSystem, $"{title}##{guid}", message, type);
+        MessageBoxWindow box  = new(windowSystem, $"{title}##{guid}", message, type);
         box.ShowWebsite = showWebsite;
         box.IsOpen      = true;
-        WindowSystem.AddWindow(box);
+        windowSystem.AddWindow(box);
         return box.messageTaskCompletionSource.Task;
     }
 
     public static Task<MessageBoxResult> Show
     (
-        WindowSystem                      WindowSystem,
+        WindowSystem                      windowSystem,
         string                            title,
         string                            message,
         object?                           userdata,
@@ -81,10 +81,10 @@ internal class MessageBoxWindow : Window, IDisposable
     )
     {
         var              guid = Guid.NewGuid();
-        MessageBoxWindow box  = new(WindowSystem, $"{title}##{guid}", message, type, userdata, callback);
+        MessageBoxWindow box  = new(windowSystem, $"{title}##{guid}", message, type, userdata, callback);
         box.IsOpen = true;
         box.IsOpen = true;
-        WindowSystem.AddWindow(box);
+        windowSystem.AddWindow(box);
         return box.messageTaskCompletionSource.Task;
     }
 
