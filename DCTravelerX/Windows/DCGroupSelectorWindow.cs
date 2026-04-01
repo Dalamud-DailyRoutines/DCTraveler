@@ -33,20 +33,18 @@ internal class DCGroupSelectorWindow() : Window
 
         if (Service.GameGui.GetAddonByName("_TitleMenu") == 0)
         {
-            ImGui.Text("必须在标题画面打开");
+            IsOpen = false;
             return;
         }
 
-        var columnWidth = ImGui.CalcTextSize("一二三四五六七八九十").X;
-
         foreach (var dc in DCTravelClient.Areas)
         {
-            DrawDcGroup(dc.Value.Area, columnWidth);
+            DrawDCGroup(dc.Value.Area);
             ImGui.SameLine();
         }
     }
 
-    private void DrawDcGroup(Area area, float width)
+    private void DrawDCGroup(Area area)
     {
         var tableStartPos = ImGui.GetCursorScreenPos();
 
@@ -67,15 +65,21 @@ internal class DCGroupSelectorWindow() : Window
             }
         }
 
-        var tableSize = ImGui.GetItemRectSize().WithY(0) + new Vector2(width, 9 * ImGui.GetTextLineHeightWithSpacing());
-
-        ImGui.SetCursorScreenPos(tableStartPos);
+        ImGui.SetCursorScreenPos(tableStartPos - ImGui.GetStyle().ItemSpacing.WithY(0));
 
         using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0, 0, 0, 0)))
         using (ImRaii.PushColor(ImGuiCol.ButtonHovered, new Vector4(0.15f, 0.6f, 1f, 0.30f)))
         using (ImRaii.PushColor(ImGuiCol.ButtonActive, new Vector4(0.1f, 0.35f, 0.8f, 0.50f)))
         {
-            if (ImGui.Button($"##{area.AreaName} Click", tableSize))
+            if (ImGui.Button
+                (
+                    $"##{area.AreaName} Click",
+                    new
+                    (
+                        ImGui.CalcTextSize("一二三四五五六七八九十").X,
+                        11 * ImGui.GetTextLineHeightWithSpacing()
+                    )
+                ))
             {
                 Task.Run
                 (async () =>
