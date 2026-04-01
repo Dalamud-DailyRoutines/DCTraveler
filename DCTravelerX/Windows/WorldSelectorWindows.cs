@@ -55,7 +55,7 @@ internal class WorldSelectorWindows() : Window
             IsOpen = false;
             return;
         }
-        
+
         var style    = ImGui.GetStyle();
         var viewport = ImGui.GetMainViewport();
 
@@ -126,6 +126,13 @@ internal class WorldSelectorWindows() : Window
 
         using (ImRaii.Disabled(!enableRetry))
         {
+            var allowSwitchToAvailableWorld = Service.Config.AllowSwitchToAvailableWorld;
+            if (ImGui.Checkbox("目标繁忙时自动切换到同大区其他畅通服务器 (若存在)", ref allowSwitchToAvailableWorld))
+            {
+                Service.Config.AllowSwitchToAvailableWorld = allowSwitchToAvailableWorld;
+                Service.Config.Save();
+            }
+
             var maxRetryCount = Service.Config.MaxRetryCount;
             ImGui.SetNextItemWidth(GetSettingWidth());
 

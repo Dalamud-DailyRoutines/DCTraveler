@@ -67,7 +67,7 @@ internal class DCGroupSelectorWindow() : Window
 
         using var windowPadding = ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, style.WindowPadding * new Vector2(1.15f, 1.1f));
         using var itemSpacing   = ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing,   style.ItemSpacing   * new Vector2(1.1f,  1.05f));
-        
+
         using var table = ImRaii.Table
         (
             "##DCGroupSelectorTable",
@@ -111,9 +111,9 @@ internal class DCGroupSelectorWindow() : Window
         var stateRight     = max.X - panelPadding.X;
         var dotCenter      = new Vector2(stateRight  - stateSize.X - style.ItemInnerSpacing.X - dotRadius, headerCenterY);
         var statePos       = new Vector2(dotCenter.X + dotRadius   + style.ItemInnerSpacing.X,             headerCenterY - stateSize.Y * 0.5f);
-        var dividerInset   = panelPadding.X + style.FramePadding.X * 0.9f;
-        var dividerY       = cursor.Y + panelPadding.Y + headerHeight + style.ItemSpacing.Y * 1.15f;
-        var groupStartY    = dividerY + style.ItemSpacing.Y                                 * 1.05f;
+        var dividerInset   = panelPadding.X + style.FramePadding.X                                * 0.9f;
+        var dividerY       = cursor.Y       + panelPadding.Y + headerHeight + style.ItemSpacing.Y * 1.15f;
+        var groupStartY    = dividerY       + style.ItemSpacing.Y                                 * 1.05f;
         var groupHeight    = GetGroupCardHeight();
         var groupRounding  = MathF.Max(style.FrameRounding, style.GrabRounding) * 1.45f;
         var groupTextColor = ImGui.GetColorU32(WithAlpha(KnownColor.Gainsboro,  0.94f));
@@ -222,8 +222,8 @@ internal class DCGroupSelectorWindow() : Window
         var stateSize  = ImGui.CalcTextSize(state);
         var dotRadius  = style.ItemSpacing.Y * 0.72f;
         var stateRight = max.X - style.FramePadding.X * 1.25f;
-        var dotCenter  = new Vector2(stateRight - stateSize.X - style.ItemInnerSpacing.X - dotRadius, position.Y + height * 0.5f);
-        var statePos   = new Vector2(dotCenter.X + dotRadius + style.ItemInnerSpacing.X, position.Y + (height - stateSize.Y) * 0.5f);
+        var dotCenter  = new Vector2(stateRight  - stateSize.X - style.ItemInnerSpacing.X - dotRadius, position.Y + height                 * 0.5f);
+        var statePos   = new Vector2(dotCenter.X + dotRadius   + style.ItemInnerSpacing.X,             position.Y + (height - stateSize.Y) * 0.5f);
 
         drawList.AddCircleFilled(dotCenter, dotRadius, ImGui.GetColorU32(stateColor));
         drawList.AddText(statePos, ImGui.GetColorU32(WithAlpha(KnownColor.Gainsboro, 0.9f)), state);
@@ -251,7 +251,8 @@ internal class DCGroupSelectorWindow() : Window
                                  .Take(columns)
                                  .Select(area => Math.Max(1, area.GroupList.Count))
                                  .DefaultIfEmpty(1)
-                                 .Max() + 1;
+                                 .Max() +
+                            1;
 
             totalHeight += GetPanelHeight(maxGroups);
         }
