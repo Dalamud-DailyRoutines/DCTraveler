@@ -1,4 +1,4 @@
-﻿<Project>
+<Project>
     <PropertyGroup>
         <Use_Dalamud_CN>true</Use_Dalamud_CN>
     </PropertyGroup>
