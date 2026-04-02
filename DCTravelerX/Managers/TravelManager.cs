@@ -544,30 +544,22 @@ public static class TravelManager
 
     private static string ExtractErrorMessage(Exception ex)
     {
+        const string PREFIX  = "消息:";
+
         var message = ex.Message;
 
-        var messagePrefix = "message:";
-        var messageIndex  = message.IndexOf(messagePrefix, StringComparison.OrdinalIgnoreCase);
+        var parts = message.Split(PREFIX, 2);
+        if (parts.Length == 2)
+            message = parts[1].Trim();
 
-        if (messageIndex >= 0)
-        {
-            var startIndex = messageIndex + messagePrefix.Length;
-            message = message.Substring(startIndex).Trim();
+        message = message.Split("\nat ",      2)[0].Trim();
+        message = message.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)[0].Trim();
 
-            var atIndex = message.IndexOf("\nat ", StringComparison.Ordinal);
-            if (atIndex > 0)
-                message = message[..atIndex].Trim();
-        }
-
-        var lines = message.Split(['\n', '\r'], StringSplitOptions.RemoveEmptyEntries);
-        if (lines.Length > 0)
-            message = lines[0].Trim();
-
-        if (message.Length > 150)
-            message = message[..150] + "...";
-
-        return message;
+        return message.Length > 150
+                   ? message[..150] + "..."
+                   : message;
     }
+
 
     private static void CleanupAfterTravel(bool needReLogin)
     {
