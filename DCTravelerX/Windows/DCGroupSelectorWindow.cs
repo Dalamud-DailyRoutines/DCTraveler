@@ -26,6 +26,7 @@ internal class DCGroupSelectorWindow() : Window
     private const float MINIMUM_PANEL_WIDTH = 220f;
 
     private TaskCompletionSource<string?> areaNameTaskCompletionSource = null!;
+    private string? currentAreaName;
 
     public void Dispose() { }
 
@@ -81,11 +82,11 @@ internal class DCGroupSelectorWindow() : Window
         foreach (var area in areas)
         {
             ImGui.TableNextColumn();
-            DrawAreaPanel(area);
+            DrawAreaPanel(area, currentAreaName);
         }
     }
 
-    private void DrawAreaPanel(Area area)
+    private void DrawAreaPanel(Area area, string? currentAreaName)
     {
         var style          = ImGui.GetStyle();
         var groupCount     = Math.Max(1, area.GroupList.Count);
@@ -102,12 +103,16 @@ internal class DCGroupSelectorWindow() : Window
         var panelWidth     = size.X - panelPadding.X * 2f;
         var dotRadius      = style.ItemSpacing.Y;
         var title          = area.AreaName;
+        var isCurrentArea  = string.Equals(area.AreaName, currentAreaName, StringComparison.Ordinal);
+        var checkMark      = "✓";
         var state          = GetAreaStateText(area.State);
         var titleSize      = ImGui.CalcTextSize(title);
+        var checkMarkSize  = isCurrentArea ? ImGui.CalcTextSize(checkMark) : Vector2.Zero;
         var stateSize      = ImGui.CalcTextSize(state);
         var headerHeight   = MathF.Max(titleSize.Y, MathF.Max(stateSize.Y, dotRadius * 2f));
         var headerCenterY  = cursor.Y + panelPadding.Y + headerHeight * 0.5f;
         var titlePos       = new Vector2(cursor.X + panelPadding.X, headerCenterY - titleSize.Y * 0.5f);
+        var checkMarkPos   = new Vector2(titlePos.X + titleSize.X + style.ItemInnerSpacing.X * 0.85f, headerCenterY - checkMarkSize.Y * 0.5f);
         var stateRight     = max.X - panelPadding.X;
         var dotCenter      = new Vector2(stateRight  - stateSize.X - style.ItemInnerSpacing.X - dotRadius, headerCenterY);
         var statePos       = new Vector2(dotCenter.X + dotRadius   + style.ItemInnerSpacing.X,             headerCenterY - stateSize.Y * 0.5f);
@@ -128,6 +133,8 @@ internal class DCGroupSelectorWindow() : Window
         drawList.AddRectFilled(cursor, max, ImGui.GetColorU32(background), rounding);
         drawList.AddRect(cursor, max, ImGui.GetColorU32(borderColor), rounding, 0, borderSize);
         drawList.AddText(titlePos, titleColor, title);
+        if (isCurrentArea)
+            drawList.AddText(checkMarkPos, ImGui.GetColorU32(WithAlpha(KnownColor.MediumSeaGreen, held ? 0.92f : 1f)), checkMark);
         drawList.AddCircleFilled(dotCenter, dotRadius, ImGui.GetColorU32(GetAreaStateColor(area.State)));
         drawList.AddText(statePos, ImGui.GetColorU32(WithAlpha(KnownColor.Gainsboro, 0.92f)), state);
         drawList.AddLine
@@ -330,6 +337,7 @@ internal class DCGroupSelectorWindow() : Window
     {
         IsOpen                       = true;
         areaNameTaskCompletionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        currentAreaName              = GameFunctions.GetCurrentSdoAreaName();
 
         return await areaNameTaskCompletionSource.Task;
     }

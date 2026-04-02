@@ -160,6 +160,23 @@ internal static class GameFunctions
         RefreshGameServer();
     }
 
+    public static unsafe string? GetCurrentSdoAreaName()
+    {
+        if (ServerDataManager.SdoAreas is not { Length: > 0 })
+            return null;
+
+        var framework     = Framework.Instance();
+        var networkModule = framework->GetNetworkModuleProxy()->NetworkModule;
+        var lobbyHost     = networkModule->ActiveLobbyHost.ToString();
+
+        if (lobbyHost.IsNullOrWhitespace())
+            return null;
+
+        return ServerDataManager.SdoAreas
+                                .FirstOrDefault(x => string.Equals(x.AreaLobby, lobbyHost, StringComparison.OrdinalIgnoreCase))
+                               ?.AreaName;
+    }
+
     public static async Task SelectDCAndLogin(string name, bool needLogin)
     {
         var newTicket = await DCTravelClient.Instance().RefreshGameSessionId();
