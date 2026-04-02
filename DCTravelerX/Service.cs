@@ -75,6 +75,7 @@ public class Service
 
     public static void Uninit()
     {
+        TravelManager.Uninit();
         IPCManager.Uninit();
         DCTravelClient.Instance().IsDisposed = true;
         ContextMenuManager.Uninit();

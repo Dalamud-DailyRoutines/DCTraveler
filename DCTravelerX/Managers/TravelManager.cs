@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -17,11 +17,12 @@ namespace DCTravelerX.Managers;
 public static class TravelManager
 {
     internal static SemaphoreSlim TravelSemaphore { get; } = new(1, 1);
-    
+
     private const int COOLDOWN_SECONDS = 60;
 
     private static           DateTime      LastTravelTime = DateTime.MinValue;
     private static           DateTime      LastCancelTime = DateTime.MinValue;
+    private static           CancellationTokenSource? ActiveTravelCancellation;
 
     private static bool IsOnTravelling;
 
@@ -75,14 +76,21 @@ public static class TravelManager
     {
         await TravelSemaphore.WaitAsync();
 
+        using var travelCancellation = new CancellationTokenSource();
+        var cancellationToken        = travelCancellation.Token;
+        var previousCancellation     = Interlocked.Exchange(ref ActiveTravelCancellation, travelCancellation);
+        previousCancellation?.Cancel();
+        previousCancellation?.Dispose();
+
         var withAnyException = false;
 
         try
         {
             IsOnTravelling = true;
-            await PrepareForTravel();
+            await PrepareForTravel(cancellationToken);
 
             var title = isBack ? "返回至原始大区" : "超域旅行";
+            cancellationToken.ThrowIfCancellationRequested();
 
             if (errorMessage != null)
             {
@@ -117,7 +125,7 @@ public static class TravelManager
                 if (!shouldContinue)
                     return;
 
-                await ApplyCooldownBeforeProcessing();
+                await ApplyCooldownBeforeProcessing(cancellationToken);
 
                 await ExecuteOrderWithRetry
                 (
@@ -131,8 +139,13 @@ public static class TravelManager
                     targetWorldID,
                     contentID,
                     currentGroup,
-                    currentCharacterName
+                    currentCharacterName,
+                    cancellationToken
                 );
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                Service.Log.Information("跨区流程已取消");
             }
             catch (Exception ex)
             {
@@ -143,33 +156,59 @@ public static class TravelManager
             }
             finally
             {
-                CleanupAfterTravel(withAnyException);
+                await CleanupAfterTravel(withAnyException);
             }
         }
         finally
         {
+            if (ReferenceEquals(Interlocked.CompareExchange(ref ActiveTravelCancellation, null, travelCancellation), travelCancellation))
+                travelCancellation.Cancel();
             TravelSemaphore.Release();
         }
     }
 
-    private static async Task PrepareForTravel()
+    internal static void Uninit()
+    {
+        Interlocked.Exchange(ref ActiveTravelCancellation, null)?.Cancel();
+        IsOnTravelling = false;
+
+        try
+        {
+            Service.AddonLifecycle.UnregisterListener(OnAddonTitleLogo);
+            Service.AddonLifecycle.UnregisterListener(OnAddonTitleMenu);
+            _ = Service.Framework.RunOnFrameworkThread
+                (() =>
+                {
+                    WaitAddonManager.CloseImmediately();
+                    GameFunctions.ToggleTitleMenu(true);
+                    GameFunctions.ToggleTitleLogo(true);
+                });
+        }
+        catch (Exception ex)
+        {
+            Service.Log.Warning(ex, "跨区流程卸载清理时出现异常");
+        }
+    }
+
+    private static async Task PrepareForTravel(CancellationToken cancellationToken)
     {
         var isQueryingBefore = false;
 
         while (DCTravelClient.Instance().IsUpdatingAllQueryTime)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             isQueryingBefore = true;
-            await Task.Delay(100);
+            await Task.Delay(100, cancellationToken);
         }
 
         if (isQueryingBefore)
-            await Task.Delay(2_000);
+            await Task.Delay(2_000, cancellationToken);
 
         Service.AddonLifecycle.RegisterListener(AddonEvent.PreDraw, "_TitleLogo", OnAddonTitleLogo);
         Service.AddonLifecycle.RegisterListener(AddonEvent.PreDraw, "_TitleMenu", OnAddonTitleMenu);
     }
 
-    private static async Task ApplyCooldownBeforeProcessing()
+    private static async Task ApplyCooldownBeforeProcessing(CancellationToken cancellationToken)
     {
         var timeSinceTravel = DateTime.UtcNow - LastTravelTime;
         var timeSinceCancel = DateTime.UtcNow - LastCancelTime;
@@ -184,14 +223,14 @@ public static class TravelManager
 
             while (DateTime.UtcNow - waitStart < delay)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var remaining = delay - (DateTime.UtcNow - waitStart);
                 var message   = $"传送请求过于频繁\n等待 {remaining.TotalSeconds:F0} 秒后自动继续……";
-                await Service.Framework.RunOnFrameworkThread(() => GameFunctions.OpenWaitAddon(message));
-                await Service.Framework.RunOnFrameworkThread(() => GameFunctions.UpdateWaitAddon(message));
-                await Task.Delay(500);
+                await WaitAddonManager.Show(message, cancellationToken);
+                await Task.Delay(500, cancellationToken);
             }
 
-            await Service.Framework.RunOnFrameworkThread(GameFunctions.CloseWaitAddon);
+            await WaitAddonManager.Close(cancellationToken);
         }
 
         LastTravelTime = DateTime.UtcNow;
@@ -263,7 +302,7 @@ public static class TravelManager
             if (Service.GameGui.GetAddonByName("_CharaSelectListMenu") != nint.Zero)
                 await Service.Framework.RunOnFrameworkThread(GameFunctions.ReturnToTitle);
 
-            await Service.Framework.RunOnFrameworkThread(() => GameFunctions.OpenWaitAddon($"正在返回原始大区: {targetDCGroupName}"));
+            await WaitAddonManager.Show($"正在返回原始大区: {targetDCGroupName}");
 
             return (targetDCGroupName, null, false, false, 0, true);
         }
@@ -320,8 +359,7 @@ public static class TravelManager
             }
 
             await Service.Framework.RunOnFrameworkThread(GameFunctions.ReturnToTitle);
-            await Service.Framework.RunOnFrameworkThread
-                (() => GameFunctions.OpenWaitAddon(BuildWaitAddonMessage(targetDCGroupName, effectiveTargetGroup, targetGroup, waitTimeMessage)));
+            await WaitAddonManager.Show(BuildWaitAddonMessage(targetDCGroupName, effectiveTargetGroup, targetGroup, waitTimeMessage));
 
             var retryCount = Service.Config.MaxRetryCount;
 
@@ -341,7 +379,8 @@ public static class TravelManager
         int    targetWorldID,
         ulong  contentId,
         Group  currentGroup,
-        string currentCharacterName
+        string currentCharacterName,
+        CancellationToken cancellationToken
     )
     {
         if (isIPCCall || isBack)
@@ -355,6 +394,8 @@ public static class TravelManager
 
         while (retryCount <= maxRetries)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (enableRetry && Service.KeyState[VirtualKey.SHIFT])
             {
                 Service.Log.Info("检测到 Shift 键按下，等待当前订单完成后取消");
@@ -397,7 +438,7 @@ public static class TravelManager
                     Service.Log.Information($"订单号: {currentOrderID}，目标服务器: {effectiveTargetGroup.GroupName} (尝试 {retryCount + 1}/{maxRetries + 1})");
                 }
 
-                await ProcessingOrder(currentOrderID, targetDCGroupName, isIPCCall);
+                await ProcessingOrder(currentOrderID, targetDCGroupName, isIPCCall, cancellationToken);
 
                 if (userCancelled)
                     LastCancelTime = DateTime.UtcNow;
@@ -443,6 +484,8 @@ public static class TravelManager
 
                 while (DateTime.UtcNow - waitStart < retryDelay)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     if (Service.KeyState[VirtualKey.SHIFT])
                     {
                         LastCancelTime = DateTime.UtcNow;
@@ -452,8 +495,8 @@ public static class TravelManager
                     var remaining    = retryDelay - (DateTime.UtcNow - waitStart);
                     var errorMsg     = ExtractErrorMessage(ex);
                     var waitAddonMsg = $"错误: {errorMsg}\n第 {retryCount}/{maxRetries} 次重试 / 等待 {remaining.TotalSeconds:F0} 秒后重试 (按住 Shift 取消传送)";
-                    await Service.Framework.RunOnFrameworkThread(() => GameFunctions.UpdateWaitAddon(waitAddonMsg));
-                    await Task.Delay(1000);
+                    await WaitAddonManager.Show(waitAddonMsg, cancellationToken);
+                    await Task.Delay(1000, cancellationToken);
                 }
 
                 Service.Log.Info($"开始第 {retryCount} 次重试...");
@@ -560,17 +603,21 @@ public static class TravelManager
                    : message;
     }
 
-
-    private static void CleanupAfterTravel(bool needReLogin)
+    private static async Task CleanupAfterTravel(bool needReLogin)
     {
-        GameFunctions.CloseWaitAddon();
+        IsOnTravelling = false;
+        await WaitAddonManager.Close();
         Service.AddonLifecycle.UnregisterListener(OnAddonTitleLogo);
         Service.AddonLifecycle.UnregisterListener(OnAddonTitleMenu);
-        GameFunctions.ToggleTitleMenu(true);
-        GameFunctions.ToggleTitleLogo(true);
+        await Service.Framework.RunOnFrameworkThread
+            (() =>
+            {
+                GameFunctions.ToggleTitleMenu(true);
+                GameFunctions.ToggleTitleLogo(true);
+            });
 
         if (needReLogin)
-            GameFunctions.LoginInGame();
+            await Service.Framework.RunOnFrameworkThread(GameFunctions.LoginInGame);
     }
 
     public static async Task<MigrationOrder> GetTravelingOrder(ulong contentId)
@@ -599,16 +646,18 @@ public static class TravelManager
         }
     }
 
-    private static async Task ProcessingOrder(string orderID, string targetDCGroupName, bool isIPCCall)
+    private static async Task ProcessingOrder(string orderID, string targetDCGroupName, bool isIPCCall, CancellationToken cancellationToken)
     {
         while (true)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var status = await DCTravelClient.Instance().QueryOrderStatus(orderID);
             Service.Log.Information($"当前订单状态: {status.Status}");
 
-            GameFunctions.ResetTitleIdleTime();
-            GameFunctions.OpenWaitAddon(StatusText.GetValueOrDefault(status.Status,   "未知状态"));
-            GameFunctions.UpdateWaitAddon(StatusText.GetValueOrDefault(status.Status, "未知状态"));
+            var statusMessage = StatusText.GetValueOrDefault(status.Status, "未知状态");
+            await Service.Framework.RunOnFrameworkThread(GameFunctions.ResetTitleIdleTime);
+            await WaitAddonManager.Show(statusMessage, cancellationToken);
 
             if (status.Status == MigrationStatus.Completed)
                 break;
@@ -642,7 +691,7 @@ public static class TravelManager
                 MigrationStatus.Processing3 or MigrationStatus.Processing4))
                 continue;
 
-            await Task.Delay(2000);
+            await Task.Delay(2000, cancellationToken);
         }
 
         await GameFunctions.SelectDCAndLogin(targetDCGroupName, !isIPCCall);

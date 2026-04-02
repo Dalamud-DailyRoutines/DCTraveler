@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using DCTravelerX.Helpers;
 using DCTravelerX.Infos;
@@ -37,12 +37,7 @@ public static class IPCManager
         if (Service.GameGui.GetAddonByName("_TitleMenu") == 0)
             return false;
 
-        var newTicket = await DCTravelClient.Instance().RefreshGameSessionId();
-
-        GameFunctions.ChangeToSdoArea(name);
-        GameFunctions.ChangeDEVTestSID(newTicket);
-        GameFunctions.CloseWaitAddon();
-        GameFunctions.LoginInGame();
+        await GameFunctions.SelectDCAndLogin(name, true);
         return true;
     }
 

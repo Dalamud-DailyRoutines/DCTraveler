@@ -34,40 +34,8 @@ internal static class GameFunctions
         Service.Log.Information("返回标题界面");
     }
 
-    public static unsafe void OpenWaitAddon(string message)
-    {
-        if (Service.GameGui.GetAddonByName("LobbyDKT") != null) return;
-
-        var instance = RaptureAtkModule.Instance();
-
-        var row = instance->AddonNames.Select((name, index) => new { Name = name.ToString(), Index = index })
-                                      .FirstOrDefault(x => x.Name == "LobbyDKT").Index;
-
-        var values = stackalloc AtkValue[3];
-        values[0].SetManagedString($"{message}");
-        values[1].SetUInt(0);
-        instance->OpenAddon((uint)row, 2, values, null, 0, 0, 0);
-    }
-
-    public static unsafe void UpdateWaitAddon(string message)
-    {
-        var addon = (AtkUnitBase*)Service.GameGui.GetAddonByName("LobbyDKT").Address;
-        if (addon == null) return;
-
-        addon->AtkValues[0].SetManagedString(message);
-        addon->OnRefresh(addon->AtkValuesCount, addon->AtkValues);
-    }
-
     public static unsafe void ResetTitleIdleTime() =>
         AgentLobby.Instance()->IdleTime = 0;
-
-    public static unsafe void CloseWaitAddon()
-    {
-        var addon = (AtkUnitBase*)Service.GameGui.GetAddonByName("LobbyDKT").Address;
-        if (addon == null) return;
-
-        addon->Close(true);
-    }
 
     public static unsafe void ToggleTitleLogo(bool isVisible)
     {
@@ -198,9 +166,9 @@ internal static class GameFunctions
 
         ChangeToSdoArea(name);
         ChangeDEVTestSID(newTicket);
-        CloseWaitAddon();
+        await WaitAddonManager.Close();
         if (needLogin)
-            LoginInGame();
+            await Service.Framework.RunOnFrameworkThread(LoginInGame);
     }
 
     private unsafe delegate void ReturnToTitleDelegate(AgentLobby* agentLobby);
