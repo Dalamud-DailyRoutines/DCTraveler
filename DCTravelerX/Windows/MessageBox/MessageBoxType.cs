@@ -1,4 +1,4 @@
-namespace DCTravelerX.Infos;
+namespace DCTravelerX.Windows.MessageBox;
 
 public enum MessageBoxType
 {

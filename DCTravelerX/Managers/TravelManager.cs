@@ -9,6 +9,7 @@ using Dalamud.Game.ClientState.Keys;
 using DCTravelerX.Helpers;
 using DCTravelerX.Infos;
 using DCTravelerX.Windows;
+using DCTravelerX.Windows.MessageBox;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using Lumina.Excel.Sheets;
 
@@ -20,9 +21,9 @@ public static class TravelManager
 
     private const int COOLDOWN_SECONDS = 60;
 
-    private static           DateTime      LastTravelTime = DateTime.MinValue;
-    private static           DateTime      LastCancelTime = DateTime.MinValue;
-    private static           CancellationTokenSource? ActiveTravelCancellation;
+    private static DateTime                 LastTravelTime = DateTime.MinValue;
+    private static DateTime                 LastCancelTime = DateTime.MinValue;
+    private static CancellationTokenSource? ActiveTravelCancellation;
 
     private static bool IsOnTravelling;
 
@@ -76,9 +77,9 @@ public static class TravelManager
     {
         await TravelSemaphore.WaitAsync();
 
-        using var travelCancellation = new CancellationTokenSource();
-        var cancellationToken        = travelCancellation.Token;
-        var previousCancellation     = Interlocked.Exchange(ref ActiveTravelCancellation, travelCancellation);
+        using var travelCancellation   = new CancellationTokenSource();
+        var       cancellationToken    = travelCancellation.Token;
+        var       previousCancellation = Interlocked.Exchange(ref ActiveTravelCancellation, travelCancellation);
         previousCancellation?.Cancel();
         previousCancellation?.Dispose();
 
@@ -177,12 +178,13 @@ public static class TravelManager
             Service.AddonLifecycle.UnregisterListener(OnAddonTitleLogo);
             Service.AddonLifecycle.UnregisterListener(OnAddonTitleMenu);
             _ = Service.Framework.RunOnFrameworkThread
-                (() =>
+            (() =>
                 {
                     WaitAddonManager.CloseImmediately();
                     GameFunctions.ToggleTitleMenu(true);
                     GameFunctions.ToggleTitleLogo(true);
-                });
+                }
+            );
         }
         catch (Exception ex)
         {
@@ -369,17 +371,17 @@ public static class TravelManager
 
     private static async Task ExecuteOrderWithRetry
     (
-        string targetDCGroupName,
-        Group? requestedTargetGroup,
-        bool   enableRetry,
-        bool   allowSwitchToAvailableWorld,
-        int    maxRetries,
-        bool   isIPCCall,
-        bool   isBack,
-        int    targetWorldID,
-        ulong  contentId,
-        Group  currentGroup,
-        string currentCharacterName,
+        string            targetDCGroupName,
+        Group?            requestedTargetGroup,
+        bool              enableRetry,
+        bool              allowSwitchToAvailableWorld,
+        int               maxRetries,
+        bool              isIPCCall,
+        bool              isBack,
+        int               targetWorldID,
+        ulong             contentId,
+        Group             currentGroup,
+        string            currentCharacterName,
         CancellationToken cancellationToken
     )
     {
@@ -587,7 +589,7 @@ public static class TravelManager
 
     private static string ExtractErrorMessage(Exception ex)
     {
-        const string PREFIX  = "消息:";
+        const string PREFIX = "消息:";
 
         var message = ex.Message;
 
@@ -610,11 +612,12 @@ public static class TravelManager
         Service.AddonLifecycle.UnregisterListener(OnAddonTitleLogo);
         Service.AddonLifecycle.UnregisterListener(OnAddonTitleMenu);
         await Service.Framework.RunOnFrameworkThread
-            (() =>
+        (() =>
             {
                 GameFunctions.ToggleTitleMenu(true);
                 GameFunctions.ToggleTitleLogo(true);
-            });
+            }
+        );
 
         if (needReLogin)
             await Service.Framework.RunOnFrameworkThread(GameFunctions.LoginInGame);

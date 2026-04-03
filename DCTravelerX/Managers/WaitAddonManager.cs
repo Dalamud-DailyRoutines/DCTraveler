@@ -1,4 +1,3 @@
-using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,7 +8,7 @@ namespace DCTravelerX.Managers;
 
 internal static class WaitAddonManager
 {
-    private const string WAIT_ADDON_NAME                  = "LobbyDKT";
+    private const string WAIT_ADDON_NAME                   = "LobbyDKT";
     private const int    WAIT_ADDON_CLOSE_POLL_INTERVAL_MS = 50;
     private const int    WAIT_ADDON_CLOSE_TIMEOUT_MS       = 2_000;
 
@@ -41,6 +40,7 @@ internal static class WaitAddonManager
     private static unsafe void UpdateOrOpen(string message)
     {
         var addon = GetWaitAddon();
+
         if (addon != null)
         {
             RefreshWaitAddon(addon, message);
@@ -48,8 +48,8 @@ internal static class WaitAddonManager
         }
 
         var instance = RaptureAtkModule.Instance();
-        var row      = instance->AddonNames.Select((name, index) => new { Name = name.ToString(), Index = index })
-                               .FirstOrDefault(x => x.Name == WAIT_ADDON_NAME).Index;
+        var row = instance->AddonNames.Select((name, index) => new { Name = name.ToString(), Index = index })
+                                      .FirstOrDefault(x => x.Name == WAIT_ADDON_NAME).Index;
 
         var values = stackalloc AtkValue[3];
         values[0].SetManagedString(message);

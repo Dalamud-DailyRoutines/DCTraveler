@@ -1,26 +1,21 @@
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using System.Numerics;
 using System.Threading.Tasks;
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using DCTravelerX.Infos;
+using DCTravelerX.Windows.Style;
 
 namespace DCTravelerX.Windows;
 
 internal class WorldSelectorWindows() : Window
                                         (
                                             "超域旅行",
-                                            ImGuiWindowFlags.NoCollapse      |
-                                            ImGuiWindowFlags.NoSavedSettings |
-                                            ImGuiWindowFlags.NoResize        |
-                                            ImGuiWindowFlags.NoScrollbar     |
-                                            ImGuiWindowFlags.NoScrollWithMouse
+                                            WindowStyles.DEFAULT_WINDOW_FLAGS
                                         ), IDisposable
 {
     private enum SelectorViewMode
@@ -80,10 +75,7 @@ internal class WorldSelectorWindows() : Window
     {
         EnsureValidSelectionState();
 
-        var style = ImGui.GetStyle();
-
-        using var windowPadding = ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, style.WindowPadding * new Vector2(1.15f, 1.1f));
-        using var itemSpacing   = ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing,   style.ItemSpacing   * new Vector2(1.1f,  1.05f));
+        using var selectorStyle = WindowStyles.PushWindowStyle();
 
         if (viewMode == SelectorViewMode.Settings)
             DrawSettingsView();
@@ -114,7 +106,11 @@ internal class WorldSelectorWindows() : Window
 
     private void DrawSettingsView()
     {
-        using var framePadding = ImRaii.PushStyle(ImGuiStyleVar.FramePadding, ImGui.GetStyle().FramePadding * new Vector2(1.1f, 1.15f));
+        using var framePadding = ImRaii.PushStyle
+        (
+            ImGuiStyleVar.FramePadding,
+            ImGui.GetStyle().FramePadding * WindowStyles.SettingsFramePaddingScale
+        );
 
         var enableRetry = Service.Config.EnableAutoRetry;
 
@@ -127,6 +123,7 @@ internal class WorldSelectorWindows() : Window
         using (ImRaii.Disabled(!enableRetry))
         {
             var allowSwitchToAvailableWorld = Service.Config.AllowSwitchToAvailableWorld;
+
             if (ImGui.Checkbox("目标繁忙时自动切换到同大区其他畅通服务器 (若存在)", ref allowSwitchToAvailableWorld))
             {
                 Service.Config.AllowSwitchToAvailableWorld = allowSwitchToAvailableWorld;
@@ -178,7 +175,17 @@ internal class WorldSelectorWindows() : Window
     {
         foreach (var area in GetOrderedAreas(excludeAreaId))
         {
-            if (DrawCard(area.AreaName, GetAreaStateText(area.State), selectedAreaId == (uint)area.AreaId, GetAreaStateColor(area.State)))
+            var areaStatus = WindowStyles.GetAreaStatus(area.State);
+
+            if (WindowStyles.DrawSelectableCard
+                (
+                    $"##Area_{area.AreaId}",
+                    area.AreaName,
+                    areaStatus.Text,
+                    selectedAreaId == (uint)area.AreaId,
+                    areaStatus.Color,
+                    GetCardHeight()
+                ))
             {
                 selectedAreaId    = (uint)area.AreaId;
                 selectedGroupName = ResolveGroupName(selectedAreaId, null);
@@ -193,12 +200,15 @@ internal class WorldSelectorWindows() : Window
 
         foreach (var group in area.GroupList)
         {
-            if (DrawCard
+            var queueStatus = WindowStyles.GetQueueStatus(group.QueueTime);
+            if (WindowStyles.DrawSelectableCard
                 (
+                    $"##Group_{selectedAreaId}_{group.GroupCode}_{group.GroupName}",
                     group.GroupName,
-                    GetQueueStateText(group.QueueTime),
+                    queueStatus.Text,
                     string.Equals(selectedGroupName, group.GroupName, StringComparison.Ordinal),
-                    GetQueueStateColor(group.QueueTime)
+                    queueStatus.Color,
+                    GetCardHeight()
                 ))
                 selectedGroupName = group.GroupName;
         }
@@ -214,21 +224,21 @@ internal class WorldSelectorWindows() : Window
 
         ImGui.Dummy(style.ItemSpacing with { X = 0f });
 
-        if (DrawGhostButton("取消", new Vector2(cancelWidth, buttonHeight)))
+        if (WindowStyles.DrawActionButton("取消", new Vector2(cancelWidth, buttonHeight), ButtonVariant.Ghost))
         {
             selectWorldTaskCompletionSource?.TrySetResult(null!);
             IsOpen = false;
         }
 
         ImGui.SameLine(0f, spacing);
-        if (DrawGhostButton("设置", new Vector2(cancelWidth, buttonHeight)))
+        if (WindowStyles.DrawActionButton("设置", new Vector2(cancelWidth, buttonHeight), ButtonVariant.Ghost))
             viewMode = SelectorViewMode.Settings;
 
         ImGui.SameLine(0f, spacing);
 
         using (ImRaii.Disabled(IsPrimaryActionDisabled()))
         {
-            if (DrawPrimaryButton(GetPrimaryActionText(), new Vector2(actionWidth, buttonHeight)))
+            if (WindowStyles.DrawActionButton(GetPrimaryActionText(), new Vector2(actionWidth, buttonHeight), ButtonVariant.Primary))
             {
                 selectWorldTaskCompletionSource?.TrySetResult
                 (
@@ -252,7 +262,7 @@ internal class WorldSelectorWindows() : Window
 
         ImGui.Dummy(style.ItemSpacing with { X = 0f });
 
-        if (DrawGhostButton("关闭", new Vector2(closeWidth, buttonHeight)))
+        if (WindowStyles.DrawActionButton("关闭", new Vector2(closeWidth, buttonHeight), ButtonVariant.Ghost))
         {
             selectWorldTaskCompletionSource?.TrySetResult(null!);
             IsOpen = false;
@@ -260,72 +270,8 @@ internal class WorldSelectorWindows() : Window
 
         ImGui.SameLine(0f, style.ItemSpacing.X);
 
-        if (DrawPrimaryButton("返回跨区页面", new Vector2(backWidth, buttonHeight)))
+        if (WindowStyles.DrawActionButton("返回跨区页面", new Vector2(backWidth, buttonHeight), ButtonVariant.Primary))
             viewMode = SelectorViewMode.Travel;
-    }
-
-    private static unsafe bool DrawCard(string title, string state, bool selected, Vector4 stateColor)
-    {
-        var style      = ImGui.GetStyle();
-        var size       = new Vector2(ImGui.GetContentRegionAvail().X, GetCardHeight());
-        var rounding   = MathF.Max(style.FrameRounding, style.GrabRounding) * 2f;
-        var borderSize = MathF.Max(style.FrameBorderSize, style.WindowBorderSize + style.ChildBorderSize);
-        var cursor     = ImGui.GetCursorScreenPos();
-        var clicked    = ImGui.InvisibleButton($"##{title}_{state}", size);
-        var hovered    = ImGui.IsItemHovered();
-        var held       = ImGui.IsItemActive();
-        var drawList   = ImGui.GetWindowDrawList();
-        var max        = cursor + size;
-        var padding    = style.FramePadding * new Vector2(1.35f, 1.2f);
-        var titleSize  = ImGui.CalcTextSize(title);
-        var stateSize  = ImGui.CalcTextSize(state);
-        var titlePos   = new Vector2(cursor.X + padding.X, cursor.Y + (size.Y - titleSize.Y) * 0.5f);
-        var stateRight = max.X - padding.X;
-        var dotRadius  = style.ItemSpacing.Y;
-        var dotX       = stateRight - stateSize.X - style.ItemInnerSpacing.X - dotRadius * 2f;
-        var dotCenter  = new Vector2(dotX        + dotRadius, cursor.Y + size.Y                                                      * 0.5f);
-        var statePos   = new Vector2(dotCenter.X + dotRadius           + style.ItemInnerSpacing.X, cursor.Y + (size.Y - stateSize.Y) * 0.5f);
-
-        var backgroundColor = selected
-                                  ? WithAlpha(KnownColor.SteelBlue, 0.78f)
-                                  : hovered
-                                      ? WithAlpha(KnownColor.LightSteelBlue, 0.82f)
-                                      : *ImGui.GetStyleColorVec4(ImGuiCol.WindowBg);
-        var borderColor = selected
-                              ? WithAlpha(KnownColor.DeepSkyBlue, 1f)
-                              : hovered
-                                  ? WithAlpha(KnownColor.SteelBlue,      0.92f)
-                                  : WithAlpha(KnownColor.LightSlateGray, 0.55f);
-
-        drawList.AddRectFilled(cursor, max, ImGui.GetColorU32(backgroundColor), rounding);
-        drawList.AddRect(cursor, max, ImGui.GetColorU32(borderColor), rounding, 0, borderSize);
-        drawList.AddText(titlePos, ImGui.GetColorU32(WithAlpha(KnownColor.WhiteSmoke, held ? 0.88f : 1f)), title);
-        drawList.AddCircleFilled(dotCenter, dotRadius, ImGui.GetColorU32(stateColor));
-        drawList.AddText(statePos, ImGui.GetColorU32(WithAlpha(KnownColor.Gainsboro, 0.92f)), state);
-
-        return clicked;
-    }
-
-    private static bool DrawPrimaryButton(string text, Vector2 size)
-    {
-        using var button        = ImRaii.PushColor(ImGuiCol.Button,        WithAlpha(KnownColor.Orange,     1f));
-        using var buttonHovered = ImRaii.PushColor(ImGuiCol.ButtonHovered, WithAlpha(KnownColor.Gold,       1f));
-        using var buttonActive  = ImRaii.PushColor(ImGuiCol.ButtonActive,  WithAlpha(KnownColor.DarkOrange, 1f));
-        using var textColor     = ImRaii.PushColor(ImGuiCol.Text,          WithAlpha(KnownColor.WhiteSmoke, 1f));
-        using var rounding      = ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, MathF.Max(ImGui.GetStyle().FrameRounding, ImGui.GetStyle().GrabRounding) * 2f);
-
-        return ImGui.Button(text, size);
-    }
-
-    private static bool DrawGhostButton(string text, Vector2 size)
-    {
-        using var button        = ImRaii.PushColor(ImGuiCol.Button,        WithAlpha(KnownColor.Gray,       0.72f));
-        using var buttonHovered = ImRaii.PushColor(ImGuiCol.ButtonHovered, WithAlpha(KnownColor.LightGray,  0.84f));
-        using var buttonActive  = ImRaii.PushColor(ImGuiCol.ButtonActive,  WithAlpha(KnownColor.SteelBlue,  0.80f));
-        using var textColor     = ImRaii.PushColor(ImGuiCol.Text,          WithAlpha(KnownColor.WhiteSmoke, 1f));
-        using var rounding      = ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, MathF.Max(ImGui.GetStyle().FrameRounding, ImGui.GetStyle().GrabRounding) * 2f);
-
-        return ImGui.Button(text, size);
     }
 
     private static float GetCardHeight() =>
@@ -389,49 +335,6 @@ internal class WorldSelectorWindows() : Window
 
         return rowCount * GetCardHeight() + Math.Max(0, rowCount - 1) * style.ItemSpacing.Y;
     }
-
-    private static Vector4 WithAlpha(KnownColor knownColor, float alpha)
-    {
-        var color = knownColor.Vector();
-        color.W = alpha;
-        return color;
-    }
-
-    private static string GetAreaStateText(int state) =>
-        state switch
-        {
-            0 => "通畅",
-            1 => "热门",
-            2 => "火爆",
-            _ => "繁忙"
-        };
-
-    private static Vector4 GetAreaStateColor(int state) =>
-        state switch
-        {
-            0 => WithAlpha(KnownColor.MediumSeaGreen, 1f),
-            1 => WithAlpha(KnownColor.DarkOrange,     1f),
-            _ => WithAlpha(KnownColor.IndianRed,      1f)
-        };
-
-    private static string GetQueueStateText(int? queueTime) =>
-        queueTime switch
-        {
-            0   => "通畅",
-            < 0 => "火爆",
-            > 0 => $"{queueTime} 分钟",
-            _   => "读取中"
-        };
-
-    private static Vector4 GetQueueStateColor(int? queueTime) =>
-        queueTime switch
-        {
-            0             => WithAlpha(KnownColor.MediumSeaGreen, 1f),
-            < 0           => WithAlpha(KnownColor.IndianRed,      1f),
-            > 0 and <= 15 => WithAlpha(KnownColor.DeepSkyBlue,    1f),
-            > 15          => WithAlpha(KnownColor.Goldenrod,      1f),
-            _             => WithAlpha(KnownColor.LightSlateGray, 1f)
-        };
 
     private string GetPrimaryActionText()
     {

@@ -7,7 +7,6 @@ using DCTravelerX.Infos;
 using DCTravelerX.Managers;
 using FFXIVClientStructs.FFXIV.Application.Network;
 using FFXIVClientStructs.FFXIV.Client.System.Framework;
-using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using Task = System.Threading.Tasks.Task;
@@ -174,7 +173,7 @@ internal static class GameFunctions
 
         return ServerDataManager.SdoAreas
                                 .FirstOrDefault(x => string.Equals(x.AreaLobby, lobbyHost, StringComparison.OrdinalIgnoreCase))
-                               ?.AreaName;
+                                ?.AreaName;
     }
 
     public static async Task SelectDCAndLogin(string name, bool needLogin)
