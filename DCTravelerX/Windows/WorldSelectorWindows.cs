@@ -52,7 +52,7 @@ internal class WorldSelectorWindows() : Window
             return;
         }
 
-        viewMode = SelectorViewMode.Travel;
+        viewMode            = SelectorViewMode.Travel;
         isConfirmDialogOpen = false;
         selectWorldTaskCompletionSource?.TrySetResult(null!);
         base.OnClose();
@@ -363,9 +363,9 @@ internal class WorldSelectorWindows() : Window
             return;
         }
 
-        isConfirmDialogOpen = true;
+        isConfirmDialogOpen                = true;
         isTemporarilyHiddenForConfirmation = true;
-        IsOpen = false;
+        IsOpen                             = false;
 
         _ = MessageBoxWindow.Show
         (
@@ -387,7 +387,7 @@ internal class WorldSelectorWindows() : Window
                 }
 
                 window.isTemporarilyHiddenForConfirmation = false;
-                window.IsOpen = true;
+                window.IsOpen                             = true;
             },
             MessageBoxType.YesNo
         );
@@ -515,7 +515,7 @@ internal class WorldSelectorWindows() : Window
 
     private bool TryGetSelectedTargetGroup(out Group targetGroup)
     {
-        if (selectedTargetAreaID != 0 &&
+        if (selectedTargetAreaID != 0                                                  &&
             DCTravelClient.Areas.TryGetValue(selectedTargetAreaID, out var targetArea) &&
             targetArea.Groups.TryGetValue(selectedTargetGroupName, out var foundGroup) &&
             foundGroup != null)
@@ -628,7 +628,13 @@ internal class WorldSelectorWindows() : Window
         return "是否确认要返回原始大区";
     }
 
-    private sealed record ReturnTravelRequest(int TargetWorldId, int CurrentWorldId, ulong ContentId, string CurrentCharacterName);
+    private sealed record ReturnTravelRequest
+    (
+        int    TargetWorldId,
+        int    CurrentWorldId,
+        ulong  ContentId,
+        string CurrentCharacterName
+    );
 
     public Task<SelectWorldResult> OpenTravelWindow
     (
