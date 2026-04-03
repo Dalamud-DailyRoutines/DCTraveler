@@ -6,13 +6,10 @@ namespace DCTravelerX.Managers;
 
 public class WindowManager
 {
-    public static WindowSystem? WindowSystem { get; private set; }
+    public static WindowSystem WindowSystem { get; } = new("DCTravelerX");
 
     internal static void Init()
     {
-        WindowSystem ??= new WindowSystem("DCTravelerX");
-        WindowSystem.RemoveAllWindows();
-
         InternalWindows.Init();
 
         Service.UIBuilder.Draw += DrawWindows;
@@ -22,12 +19,12 @@ public class WindowManager
     {
         using var font = FontManager.UIFont.Push();
 
-        WindowSystem?.Draw();
+        WindowSystem.Draw();
     }
 
     public static bool AddWindow(Window? window)
     {
-        if (WindowSystem == null || window == null) return false;
+        if (window == null) return false;
 
         var addedWindows = WindowSystem.Windows;
         if (addedWindows.Contains(window) || addedWindows.Any(x => x.WindowName == window.WindowName))
@@ -39,7 +36,7 @@ public class WindowManager
 
     public static bool RemoveWindow(Window? window)
     {
-        if (WindowSystem == null || window == null) return false;
+        if (window == null) return false;
 
         var addedWindows = WindowSystem.Windows;
         if (!addedWindows.Contains(window)) return false;
@@ -60,8 +57,7 @@ public class WindowManager
 
         InternalWindows.Uninit();
 
-        WindowSystem?.RemoveAllWindows();
-        WindowSystem = null;
+        WindowSystem.RemoveAllWindows();
     }
 
     private static class InternalWindows
