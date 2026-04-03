@@ -1,6 +1,6 @@
 using System;
-using System.Drawing;
 using System.Diagnostics;
+using System.Drawing;
 using System.Numerics;
 using System.Threading.Tasks;
 using Dalamud.Bindings.ImGui;
@@ -174,13 +174,13 @@ internal class MessageBoxWindow : Window, IDisposable
         drawList.AddLine
         (
             new Vector2(cursor.X + dividerInset, cursor.Y + dividerY),
-            new Vector2(max.X - dividerInset, cursor.Y + dividerY),
+            new Vector2(max.X    - dividerInset, cursor.Y + dividerY),
             WindowStyles.GetColorU32(KnownColor.SlateGray, 0.55f),
             MathF.Max(1f, borderSize)
         );
 
         ImGui.SetCursorScreenPos(bodyPos);
-        using var warpPos = ImRaii.TextWrapPos(bodyPos.X + textWrapWidth);
+        using var warpPos   = ImRaii.TextWrapPos(bodyPos.X + textWrapWidth);
         using var textColor = ImRaii.PushColor(ImGuiCol.Text, WindowStyles.WithAlpha(KnownColor.Gainsboro, 0.96f));
         ImGui.TextUnformatted(Message);
         ImGui.SetCursorScreenPos(new Vector2(cursor.X, max.Y));

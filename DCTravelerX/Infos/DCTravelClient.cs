@@ -6,7 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using DCTravelerX.Managers;
+using DCTravelerX.Travel.Runtime;
 
 namespace DCTravelerX.Infos;
 
@@ -84,7 +84,7 @@ internal class DCTravelClient
         {
             if (IsDisposed) return;
 
-            if (TravelManager.TravelSemaphore.CurrentCount > 0)
+            if (TravelRuntime.CanRefreshTravelTime)
                 await QueryAllTravelTime();
             await Task.Delay(60_000);
         }

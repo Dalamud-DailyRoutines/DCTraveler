@@ -58,32 +58,8 @@ public static class IPCManager
     }
 
     // 获取订单状态
-    private static async Task<bool> GetOrderStatus(string orderID)
-    {
-        while (true)
-        {
-            var status = await DCTravelClient.Instance().QueryOrderStatus(orderID);
-
-            switch (status.Status)
-            {
-                case MigrationStatus.Completed:
-                    return true;
-                case MigrationStatus.TeleportFailed or MigrationStatus.PreCheckFailed:
-                    return false;
-                case MigrationStatus.NeedConfirm:
-                {
-                    await DCTravelClient.Instance().MigrationConfirmOrder(orderID, true);
-                    continue;
-                }
-            }
-
-            if (status.Status is not (MigrationStatus.InPrepare0 or MigrationStatus.InPrepare1 or
-                MigrationStatus.Processing3 or MigrationStatus.Processing4))
-                continue;
-
-            await Task.Delay(2000);
-        }
-    }
+    private static Task<bool> GetOrderStatus(string orderID) =>
+        TravelManager.WaitForOrderCompletionAsync(orderID);
 
     // 根据服务器获取时间
     private static int GetWaitTime(uint worldID)

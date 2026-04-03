@@ -8,7 +8,10 @@ using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using DCTravelerX.Infos;
+using DCTravelerX.Managers;
+using DCTravelerX.Windows.MessageBox;
 using DCTravelerX.Windows.Style;
+using Lumina.Excel.Sheets;
 
 namespace DCTravelerX.Windows;
 
@@ -25,6 +28,8 @@ internal class WorldSelectorWindows() : Window
     }
 
     private bool                                     isBack;
+    private bool                                     isConfirmDialogOpen;
+    private bool                                     isTemporarilyHiddenForConfirmation;
     private uint                                     selectedSourceAreaID;
     private string                                   selectedSourceGroupName = string.Empty;
     private uint                                     selectedTargetAreaID;
@@ -38,7 +43,17 @@ internal class WorldSelectorWindows() : Window
 
     public override void OnClose()
     {
+        var isTemporarilyHidden = isTemporarilyHiddenForConfirmation;
+        isTemporarilyHiddenForConfirmation = false;
+
+        if (isTemporarilyHidden)
+        {
+            base.OnClose();
+            return;
+        }
+
         viewMode = SelectorViewMode.Travel;
+        isConfirmDialogOpen = false;
         selectWorldTaskCompletionSource?.TrySetResult(null!);
         base.OnClose();
     }
@@ -239,17 +254,7 @@ internal class WorldSelectorWindows() : Window
         using (ImRaii.Disabled(IsPrimaryActionDisabled()))
         {
             if (WindowStyles.DrawActionButton(GetPrimaryActionText(), new Vector2(actionWidth, buttonHeight), ButtonVariant.Primary))
-            {
-                selectWorldTaskCompletionSource?.TrySetResult
-                (
-                    new SelectWorldResult
-                    {
-                        Source = selectedSourceGroupName,
-                        Target = selectedTargetGroupName
-                    }
-                );
-                IsOpen = false;
-            }
+                RequestPrimaryActionConfirmation();
         }
     }
 
@@ -347,6 +352,85 @@ internal class WorldSelectorWindows() : Window
         return "确认选择";
     }
 
+    private void RequestPrimaryActionConfirmation()
+    {
+        if (isConfirmDialogOpen)
+            return;
+
+        if (!TryBuildPrimaryConfirmation(out var title, out var message))
+        {
+            CompleteSelection();
+            return;
+        }
+
+        isConfirmDialogOpen = true;
+        isTemporarilyHiddenForConfirmation = true;
+        IsOpen = false;
+
+        _ = MessageBoxWindow.Show
+        (
+            WindowManager.WindowSystem,
+            title,
+            message,
+            this,
+            static (box, state) =>
+            {
+                if (state is not WorldSelectorWindows window)
+                    return;
+
+                window.isConfirmDialogOpen = false;
+
+                if (box.Result is MessageBoxResult.Yes or MessageBoxResult.Ok)
+                {
+                    window.CompleteSelection();
+                    return;
+                }
+
+                window.isTemporarilyHiddenForConfirmation = false;
+                window.IsOpen = true;
+            },
+            MessageBoxType.YesNo
+        );
+    }
+
+    private bool TryBuildPrimaryConfirmation(out string title, out string message)
+    {
+        if (showTargetWorld && TryGetSelectedTargetGroup(out var targetGroup))
+        {
+            var effectiveTargetGroup = ResolveEffectiveTargetGroup(targetGroup);
+            var waitTimeMessage      = GetWaitTimeMessage(effectiveTargetGroup.QueueTime ?? 0);
+
+            title   = "超域旅行";
+            message = BuildTravelStatusMessage(targetGroup, effectiveTargetGroup, waitTimeMessage);
+            return true;
+        }
+
+        if (isBack)
+        {
+            title   = "返回至原始大区";
+            message = BuildReturnConfirmationMessage();
+            return true;
+        }
+
+        title   = string.Empty;
+        message = string.Empty;
+        return false;
+    }
+
+    private void CompleteSelection()
+    {
+        isTemporarilyHiddenForConfirmation = false;
+        selectWorldTaskCompletionSource?.TrySetResult
+        (
+            new SelectWorldResult
+            {
+                Source = selectedSourceGroupName,
+                Target = selectedTargetGroupName
+            }
+        );
+        IsOpen = false;
+    }
+
     private bool IsPrimaryActionDisabled()
     {
         if (showSourceWorld && string.IsNullOrWhiteSpace(selectedSourceGroupName))
@@ -428,6 +512,123 @@ internal class WorldSelectorWindows() : Window
 
         return area.GroupList.First().GroupName;
     }
+
+    private bool TryGetSelectedTargetGroup(out Group targetGroup)
+    {
+        if (selectedTargetAreaID != 0 &&
+            DCTravelClient.Areas.TryGetValue(selectedTargetAreaID, out var targetArea) &&
+            targetArea.Groups.TryGetValue(selectedTargetGroupName, out var foundGroup) &&
+            foundGroup != null)
+        {
+            targetGroup = foundGroup;
+            return true;
+        }
+
+        targetGroup = null!;
+        return false;
+    }
+
+    private static Group ResolveEffectiveTargetGroup(Group requestedTargetGroup)
+    {
+        var allowSwitchToAvailableWorld = Service.Config.EnableAutoRetry && Service.Config.AllowSwitchToAvailableWorld;
+
+        if (!allowSwitchToAvailableWorld || requestedTargetGroup.QueueTime is null or >= 0)
+            return requestedTargetGroup;
+
+        if (!DCTravelClient.Areas.TryGetValue((uint)requestedTargetGroup.AreaId, out var targetAreaInfo))
+            return requestedTargetGroup;
+
+        return targetAreaInfo.Groups.Values
+                             .OrderBy(group => group.GroupID)
+                             .FirstOrDefault
+                             (group => group.QueueTime == 0 &&
+                                       !string.Equals(group.GroupName, requestedTargetGroup.GroupName, StringComparison.Ordinal)
+                             ) ??
+               requestedTargetGroup;
+    }
+
+    private static string GetWaitTimeMessage(int waitTime) =>
+        waitTime switch
+        {
+            0   => "即刻完成",
+            < 0 => "繁忙",
+            _   => $"{waitTime} 分钟"
+        };
+
+    private static string BuildTravelStatusMessage(Group requestedTargetGroup, Group effectiveTargetGroup, string waitTimeMessage)
+    {
+        if (string.Equals(requestedTargetGroup.GroupName, effectiveTargetGroup.GroupName, StringComparison.Ordinal))
+            return $"超域传送状态: {waitTimeMessage}";
+
+        return $"超域传送状态: 目标服务器 {requestedTargetGroup.GroupName} 当前繁忙\n将自动切换至同大区通畅服务器 {effectiveTargetGroup.GroupName}\n预计需要等待: {waitTimeMessage}";
+    }
+
+    private string BuildReturnConfirmationMessage()
+    {
+        if (showTargetWorld && TryGetSelectedTargetGroup(out var targetGroup))
+            return $"是否确认要返回原始大区: {targetGroup.AreaName}";
+
+        if (selectedTargetAreaID != 0 && TryGetArea(selectedTargetAreaID, out var targetArea))
+            return $"是否确认要返回原始大区: {targetArea.AreaName}";
+
+        return "是否确认要返回原始大区";
+    }
+
+    public static void ConfirmReturnTravelFromContextMenu
+    (
+        int    targetWorldId,
+        int    currentWorldId,
+        ulong  contentId,
+        bool   needSelectCurrentWorld,
+        string currentCharacterName
+    )
+    {
+        if (needSelectCurrentWorld)
+        {
+            TravelManager.Travel(targetWorldId, currentWorldId, contentId, true, true, currentCharacterName);
+            return;
+        }
+
+        var message = BuildContextMenuReturnConfirmationMessage(targetWorldId);
+
+        _ = MessageBoxWindow.Show
+        (
+            WindowManager.WindowSystem,
+            "返回至原始大区",
+            message,
+            new ReturnTravelRequest(targetWorldId, currentWorldId, contentId, currentCharacterName),
+            static (box, state) =>
+            {
+                if (box.Result is not MessageBoxResult.Yes or MessageBoxResult.Ok ||
+                    state is not ReturnTravelRequest request)
+                    return;
+
+                TravelManager.Travel
+                (
+                    request.TargetWorldId,
+                    request.CurrentWorldId,
+                    request.ContentId,
+                    true,
+                    false,
+                    request.CurrentCharacterName
+                );
+            },
+            MessageBoxType.YesNo
+        );
+    }
+
+    private static string BuildContextMenuReturnConfirmationMessage(int targetWorldId)
+    {
+        if (Service.DataManager.GetExcelSheet<World>().TryGetRow((uint)targetWorldId, out var targetWorld))
+        {
+            var targetDcName = targetWorld.DataCenter.Value.Name.ExtractText();
+            return $"是否确认要返回原始大区: {targetDcName}";
+        }
+
+        return "是否确认要返回原始大区";
+    }
+
+    private sealed record ReturnTravelRequest(int TargetWorldId, int CurrentWorldId, ulong ContentId, string CurrentCharacterName);
 
     public Task<SelectWorldResult> OpenTravelWindow
     (

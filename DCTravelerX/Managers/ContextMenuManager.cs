@@ -1,5 +1,6 @@
 using Dalamud.Game.Gui.ContextMenu;
 using Dalamud.Game.Text;
+using DCTravelerX.Windows;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 
 namespace DCTravelerX.Managers;
@@ -32,12 +33,11 @@ public static class ContextMenuManager
                 new MenuItem
                 {
                     Name = "返回至原始大区",
-                    OnClicked = _ => TravelManager.Travel
+                    OnClicked = _ => WorldSelectorWindows.ConfirmReturnTravelFromContextMenu
                     (
                         homeWorldID,
                         currentWorldID,
                         selectedCharacterCID,
-                        true,
                         currentCharacterEntry->LoginFlags == CharaSelectCharacterEntryLoginFlags.Unk32,
                         currentCharacterName
                     ),
