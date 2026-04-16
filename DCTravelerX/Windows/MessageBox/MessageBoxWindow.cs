@@ -161,9 +161,9 @@ internal class MessageBoxWindow : Window, IDisposable
         var drawList       = ImGui.GetWindowDrawList();
         var dividerInset   = panelPadding.X + style.FramePadding.X          * 0.9f;
         var headerCenterY  = cursor.Y       + panelPadding.Y + headerHeight * 0.5f;
-        var dotCenter      = new Vector2(cursor.X    + panelPadding.X + dotRadius,                headerCenterY);
-        var headerPos      = new Vector2(dotCenter.X + dotRadius      + style.ItemInnerSpacing.X, headerCenterY - headerTextSize.Y * 0.5f);
-        var bodyPos        = new Vector2(cursor.X    + panelPadding.X,                            cursor.Y      + bodyTop);
+        var dotCenter      = new Vector2(cursor.X    + 2 * panelPadding.X + dotRadius,                headerCenterY);
+        var headerPos      = new Vector2(dotCenter.X + dotRadius          + style.ItemInnerSpacing.X, headerCenterY - headerTextSize.Y * 0.5f);
+        var bodyPos        = new Vector2(cursor.X    + panelPadding.X,                                cursor.Y      + bodyTop);
 
         ImGui.InvisibleButton("##MessagePanel", new Vector2(panelWidth, panelHeight));
 
@@ -180,7 +180,7 @@ internal class MessageBoxWindow : Window, IDisposable
         );
 
         ImGui.SetCursorScreenPos(bodyPos);
-        using var warpPos   = ImRaii.TextWrapPos(bodyPos.X + textWrapWidth);
+        using var wrapPos   = ImRaii.TextWrapPos(ImGui.GetCursorPosX() + textWrapWidth);
         using var textColor = ImRaii.PushColor(ImGuiCol.Text, WindowStyles.WithAlpha(KnownColor.Gainsboro, 0.96f));
         ImGui.TextUnformatted(Message);
         ImGui.SetCursorScreenPos(new Vector2(cursor.X, max.Y));
@@ -188,7 +188,7 @@ internal class MessageBoxWindow : Window, IDisposable
 
     private static void DrawWebsiteActions()
     {
-        DrawWebsitePanel();
+        ImGui.Spacing();
 
         var style        = ImGui.GetStyle();
         var buttonHeight = GetButtonHeight();
@@ -202,55 +202,6 @@ internal class MessageBoxWindow : Window, IDisposable
 
         if (WindowStyles.DrawActionButton("打开 [订单列表]", new Vector2(buttonWidth, buttonHeight), ButtonVariant.Ghost))
             OpenUrl("https://ff14bjz.sdo.com/orderList");
-    }
-
-    private static void DrawWebsitePanel()
-    {
-        const string NOTE = "超域旅行失败后，请先根据上方报错信息处理；若仍无有效指引，再前往官网查看跨区状态与订单列表。";
-
-        var style         = ImGui.GetStyle();
-        var panelWidth    = GetPanelWidth();
-        var panelPadding  = style.FramePadding * new Vector2(1.35f, 1.25f);
-        var title         = "后续处理";
-        var titleSize     = ImGui.CalcTextSize(title);
-        var dotRadius     = style.ItemSpacing.Y * 0.82f;
-        var textWrapWidth = MathF.Max(0f, panelWidth - panelPadding.X * 2f);
-        var noteSize      = ImGui.CalcTextSize(NOTE, false, textWrapWidth);
-        var headerHeight  = MathF.Max(titleSize.Y, dotRadius * 2f);
-        var dividerY      = panelPadding.Y + headerHeight + style.ItemSpacing.Y;
-        var bodyTop       = dividerY       + style.ItemSpacing.Y;
-        var panelHeight   = bodyTop        + noteSize.Y + panelPadding.Y;
-        var cursor        = ImGui.GetCursorScreenPos();
-        var min           = cursor;
-        var max           = cursor + new Vector2(panelWidth, panelHeight);
-        var rounding      = WindowStyles.GetCardRounding() * 0.9f;
-        var borderSize    = MathF.Max(1f, WindowStyles.GetCardBorderSize(style));
-        var drawList      = ImGui.GetWindowDrawList();
-        var headerCenterY = min.Y + panelPadding.Y + headerHeight * 0.5f;
-        var dotCenter     = new Vector2(min.X       + panelPadding.X + dotRadius,                headerCenterY);
-        var titlePos      = new Vector2(dotCenter.X + dotRadius      + style.ItemInnerSpacing.X, headerCenterY - titleSize.Y * 0.5f);
-        var bodyPos       = new Vector2(min.X       + panelPadding.X,                            min.Y         + bodyTop);
-
-        ImGui.InvisibleButton("##WebsitePanel", new Vector2(panelWidth, panelHeight));
-
-        drawList.AddRectFilled(min, max, WindowStyles.GetColorU32(KnownColor.SteelBlue,               0.14f), rounding);
-        drawList.AddRect(min, max, WindowStyles.GetColorU32(KnownColor.DeepSkyBlue,                   0.36f), rounding, 0, borderSize);
-        drawList.AddCircleFilled(dotCenter, dotRadius, WindowStyles.GetColorU32(KnownColor.Goldenrod, 1f));
-        drawList.AddText(titlePos, WindowStyles.GetColorU32(KnownColor.WhiteSmoke,                    1f), title);
-        drawList.AddLine
-        (
-            new Vector2(min.X + panelPadding.X, min.Y + dividerY),
-            new Vector2(max.X - panelPadding.X, min.Y + dividerY),
-            WindowStyles.GetColorU32(KnownColor.LightSlateGray, 0.5f),
-            1f
-        );
-
-        ImGui.SetCursorScreenPos(bodyPos);
-        ImGui.PushTextWrapPos(bodyPos.X + textWrapWidth);
-        using var textColor = ImRaii.PushColor(ImGuiCol.Text, WindowStyles.WithAlpha(KnownColor.Gainsboro, 0.94f));
-        ImGui.TextUnformatted(NOTE);
-        ImGui.PopTextWrapPos();
-        ImGui.SetCursorScreenPos(new Vector2(min.X, max.Y));
     }
 
     private void DrawMessageActions()
@@ -309,7 +260,7 @@ internal class MessageBoxWindow : Window, IDisposable
         };
 
     private string GetHeaderText() =>
-        ShowWebsite ? "处理建议" : GetHeaderStatus().Text;
+        ShowWebsite ? "错误信息" : GetHeaderStatus().Text;
 
     private static float GetButtonHeight() =>
         ImGui.GetFrameHeightWithSpacing() * 1.4f;
