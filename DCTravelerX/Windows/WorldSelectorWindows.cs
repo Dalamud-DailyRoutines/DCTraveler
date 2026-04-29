@@ -89,9 +89,7 @@ internal class WorldSelectorWindows() : Window
     public override void Draw()
     {
         EnsureValidSelectionState();
-
-        using var selectorStyle = WindowStyles.PushWindowStyle();
-
+        
         if (viewMode == SelectorViewMode.Settings)
             DrawSettingsView();
         else
@@ -599,7 +597,7 @@ internal class WorldSelectorWindows() : Window
             new ReturnTravelRequest(targetWorldId, currentWorldId, contentId, currentCharacterName),
             static (box, state) =>
             {
-                if (box.Result is not MessageBoxResult.Yes or MessageBoxResult.Ok ||
+                if (box.Result is not (MessageBoxResult.Yes or MessageBoxResult.Ok) ||
                     state is not ReturnTravelRequest request)
                     return;
 

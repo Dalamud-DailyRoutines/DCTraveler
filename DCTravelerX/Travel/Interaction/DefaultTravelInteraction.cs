@@ -115,7 +115,7 @@ internal sealed class DefaultTravelInteraction : ITravelInteraction
         );
     }
 
-    public void PlayCompletionSound() =>
+    public unsafe void PlayCompletionSound() =>
         UIGlobals.PlaySoundEffect(67);
 
     private static void OnAddonTitleLogo(AddonEvent type, AddonArgs args) =>

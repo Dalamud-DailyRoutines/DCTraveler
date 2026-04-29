@@ -19,9 +19,6 @@ internal static class WindowStyles
     public static readonly Vector2 SettingsFramePaddingScale = new(1.1f, 1.15f);
     public static readonly Vector2 WindowPaddingScale        = new(1.15f, 1.1f);
 
-    public static WindowStyleScope PushWindowStyle() =>
-        new(ImGui.GetStyle());
-
     public static bool DrawActionButton(string text, Vector2 size, ButtonVariant variant)
     {
         var (buttonColor, hoveredColor, activeColor) = variant switch

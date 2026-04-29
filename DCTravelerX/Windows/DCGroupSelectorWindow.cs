@@ -61,9 +61,7 @@ internal class DCGroupSelectorWindow() : Window
             ImGui.TextUnformatted("当前没有可用的大区信息");
             return;
         }
-
-        using var selectorStyle = WindowStyles.PushWindowStyle();
-
+        
         using var table = ImRaii.Table
         (
             "##DCGroupSelectorTable",

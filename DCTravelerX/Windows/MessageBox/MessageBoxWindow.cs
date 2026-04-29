@@ -116,8 +116,6 @@ internal class MessageBoxWindow : Window, IDisposable
 
     public override void Draw()
     {
-        using var windowStyle = WindowStyles.PushWindowStyle();
-
         DrawMessagePanel();
 
         if (ShowWebsite)
