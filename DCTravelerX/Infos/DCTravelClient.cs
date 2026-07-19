@@ -111,14 +111,14 @@ internal class DCTravelClient
     {
         var rpcRequest  = new RpcRequest { Method = method!, Params = objs };
         var jsonPayload = JsonSerializer.Serialize(rpcRequest);
-        Service.Log.Debug($"请求 API: {jsonPayload}");
+        Service.Log.Verbose($"请求 API: {jsonPayload}");
 
         var request  = new HttpRequestMessage(HttpMethod.Post, apiURL) { Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json") };
         var response = await HTTPClient.SendAsync(request);
         response.EnsureSuccessStatusCode();
 
         var content = await response.Content.ReadAsStringAsync();
-        Service.Log.Debug($"API 回应: {content}");
+        Service.Log.Verbose($"API 回应: {content}");
 
         var rpcResponse = JsonSerializer.Deserialize<RpcResponse>(content);
         if (rpcResponse?.Error != null)
