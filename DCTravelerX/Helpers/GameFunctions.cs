@@ -62,14 +62,15 @@ internal static class GameFunctions
         lobbyUIClient2->Context = 0;
         lobbyUIClient2->State   = 0;
 
-        Service.Log.Information("刷新大厅信息");
+        Service.Log.Information("刷新登录大厅状态");
     }
 
     public static unsafe void ChangeDEVTestSID(string sid)
     {
         var agentLobby = AgentLobby.Instance();
-        agentLobby->UnkUtf8Strings[0].SetString(sid);
-        Service.Log.Information("筛选 Dev.TestSid");
+
+        agentLobby->GameSession.SetString(sid);
+        Service.Log.Information("刷新 Dev.TestSid");
     }
 
     public static unsafe void ChangeGameServer(string lobbyHost, string saveDataHost, string gmServerHost)
